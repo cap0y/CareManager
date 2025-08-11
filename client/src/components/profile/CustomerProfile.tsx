@@ -9,6 +9,7 @@ import { normalizeImageUrl } from '@/lib/url';
 import { changePassword } from '@/lib/api';
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface CustomerProfileProps {
   user: any;
@@ -22,6 +23,9 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
 
   // @ts-ignore – user 객체에 name/displayName 존재 여부를 런타임에서만 확인
   const userDisplay = user ? ((user as any).name ?? (user as any).displayName ?? user.email?.split("@")[0] ?? "") : "";
+
+  // 비밀번호 변경 모달 상태
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   const handleMenuClick = (action: string) => {
     switch (action) {
@@ -180,7 +184,12 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <h2 className="text-2xl font-bold text-gray-800 mb-1">{userDisplay}</h2>
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <h2 className="text-2xl font-bold text-gray-800">{userDisplay}</h2>
+                  <Button size="sm" variant="outline" onClick={() => setShowPasswordDialog(true)}>
+                    비번변경
+                  </Button>
+                </div>
                 <p className="text-gray-600 mb-1">{user.email}</p>
                 <p className="text-gray-600">010-1234-5678</p>
                 <div className="mt-1">
@@ -359,14 +368,6 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
           </CardContent>
         </Card>
 
-        {/* Password Change Form */}
-        <Card className="bg-white/90 backdrop-blur-sm shadow-lg mb-6">
-          <CardContent className="p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">비밀번호 변경</h3>
-            <PasswordChangeForm userId={user?.uid || user?.id} />
-          </CardContent>
-        </Card>
-
         {/* Statistics */}
         <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-100 shadow-lg">
           <CardContent className="p-6">
@@ -400,6 +401,16 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
           </CardContent>
         </Card>
       </div>
+      {/* 비밀번호 변경 모달 */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>비밀번호 변경</DialogTitle>
+            <DialogDescription>현재 비밀번호를 확인하고 새 비밀번호로 변경하세요.</DialogDescription>
+          </DialogHeader>
+          <PasswordChangeForm userId={user.uid || user.id} />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

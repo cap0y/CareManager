@@ -1729,6 +1729,9 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
     }
   }, [user?.uid]);
 
+  // 비밀번호 변경 모달 상태
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+
   return (
     <>
       {/* Header */}
@@ -1770,7 +1773,10 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
                       <i className="fas fa-camera text-xs"></i>
                     </div>
                   </div>
-                  <h2 className="mt-4 text-xl font-bold">{user.displayName || user.email?.split("@")[0]}</h2>
+                  <div className="mt-4 flex items-center gap-2">
+                    <h2 className="text-xl font-bold">{user.displayName || user.email?.split("@")[0]}</h2>
+                    <Button size="sm" variant="outline" onClick={() => setShowPasswordDialog(true)}>비번변경</Button>
+                  </div>
                   <p className="text-gray-500">{user.email}</p>
                   <Badge className="mt-2 bg-purple-500">케어 매니저</Badge>
                   
@@ -1907,15 +1913,17 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
               </CardContent>
             </Card>
 
-            {/* 비밀번호 변경 */}
-            <Card className="bg-white shadow-md mb-6">
-              <CardHeader>
-                <CardTitle>비밀번호 변경</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PasswordChangeForm userId={user?.uid || user?.id} />
-              </CardContent>
-            </Card>
+            {/* 비밀번호 변경 – 모달로 대체되어 비활성화 */}
+            {false && (
+              <Card className="bg-white shadow-md mb-6">
+                <CardHeader>
+                  <CardTitle>비밀번호 변경</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PasswordChangeForm userId={user?.uid || user?.id} />
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* 우측 컨텐츠 섹션 */}
@@ -3709,6 +3717,16 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
           </div>
         </div>
       )}
+      {/* 비밀번호 변경 모달 */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>비밀번호 변경</DialogTitle>
+            <DialogDescription>현재 비밀번호를 확인하고 새 비밀번호로 변경하세요.</DialogDescription>
+          </DialogHeader>
+          <PasswordChangeForm userId={user.uid || user.id} />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

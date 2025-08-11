@@ -21,6 +21,7 @@ import ShopPage from "@/components/admin/ShopPage";
 import InquiriesPage from "@/components/admin/InquiriesPage";
 import { normalizeImageUrl } from '@/lib/url';
 import { changePassword } from '@/lib/api';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface AdminProfileProps {
   user: any;
@@ -45,9 +46,10 @@ const AdminProfile = ({ user }: AdminProfileProps) => {
   const { toast } = useToast();
   const [selectedMenu, setSelectedMenu] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   // @ts-ignore – user 객체에 name/displayName 존재 여부를 런타임에서만 확인
   const userDisplay = user ? ((user as any).name ?? (user as any).displayName ?? user.email?.split("@")[0] ?? "") : "";
+  // 비밀번호 변경 모달 상태
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -484,8 +486,11 @@ const AdminProfile = ({ user }: AdminProfileProps) => {
               <i className="fas fa-user-shield text-white text-lg"></i>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">케어플랫폼</h1>
-              <p className="text-sm text-red-500">관리자 대시보드</p>
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-gray-800">{userDisplay}</p>
+                <Button size="sm" variant="outline" onClick={() => setShowPasswordDialog(true)}>비번변경</Button>
+              </div>
+              <p className="text-xs text-gray-500">{user.email}</p>
             </div>
           </div>
         </div>
@@ -561,15 +566,6 @@ const AdminProfile = ({ user }: AdminProfileProps) => {
         </header>
 
         <main className="p-6">
-          {/* 비밀번호 변경 */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>비밀번호 변경</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PasswordChangeForm userId={user.uid || user.id} />
-            </CardContent>
-          </Card>
           {/* Dashboard */}
           {selectedMenu === 'dashboard' && renderDashboard()}
 
@@ -746,6 +742,16 @@ const AdminProfile = ({ user }: AdminProfileProps) => {
           )}
         </main>
       </div>
+      {/* 비밀번호 변경 모달 */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>비밀번호 변경</DialogTitle>
+            <DialogDescription>현재 비밀번호를 확인하고 새 비밀번호로 변경하세요.</DialogDescription>
+          </DialogHeader>
+          <PasswordChangeForm userId={user.uid || user.id} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
