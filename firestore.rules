@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 테스트 모드: 모든 접근 허용 (개발용으로만 사용)
+    match /{document=**} {
+      allow read, write: if true;
+    }
+    
+    // 실제 규칙은 추후 다시 적용
+    // match /chatRooms/{roomId} {...}
+  }
+} 
