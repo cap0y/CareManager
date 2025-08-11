@@ -7,12 +7,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="mb-4 md:mb-0">
             <div className="flex items-center justify-center md:justify-start">
-              <div className="gradient-purple p-1.5 rounded-lg">
-                <i className="fas fa-heart text-white text-sm"></i>
-              </div>
-              <h2 className="ml-2 text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                시니어랑
-              </h2>
+              <img src="/images/senior.png" alt="시니어랑 로고" className="h-8 w-auto select-none" />
             </div>
             <p className="text-xs text-gray-500 mt-1 text-center md:text-left">
               © 2025 시니어랑. All rights reserved.

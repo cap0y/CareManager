@@ -103,18 +103,12 @@ const Header = ({}: HeaderProps) => {
       <div className="max-w-7xl mx-auto px-3 sm:px-4">
         <div className="flex justify-between items-center h-14">
           <div className="flex items-center space-x-2">
-            <div 
-              className="gradient-purple p-2 rounded-xl cursor-pointer"
+            <img
+              src="/images/senior.png"
+              alt="시니어랑 로고"
+              className="h-10 w-auto cursor-pointer select-none"
               onClick={() => setLocation('/')}
-            >
-              <i className="fas fa-heart text-white text-lg"></i>
-            </div>
-            <h1 
-              className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent cursor-pointer"
-              onClick={() => setLocation('/')}
-            >
-              시니어랑
-            </h1>
+            />
           </div>
 
           <div className="flex items-center space-x-2">
