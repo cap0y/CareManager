@@ -646,8 +646,8 @@ export class MemStorage implements IStorage {
     const newFavorite: Favorite = {
       id: this.currentFavoriteId++,
       ...favorite,
-      createdAt: new Date()
-    };
+      createdAt: new Date(),
+    } as any;
     this.favorites.set(newFavorite.id, newFavorite);
     return newFavorite;
   }

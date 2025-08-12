@@ -17,21 +17,13 @@ import {
   HeartOff
 } from "lucide-react";
 import { normalizeImageUrl } from '@/lib/url';
+import { favoritesAPI } from "@/lib/api";
 
-interface FavoriteCareManager {
-  id: string;
-  name: string;
-  age: number;
-  rating: number;
-  reviews: number;
-  experience: string;
-  location: string;
-  hourlyRate: number;
-  services: string[];
-  imageUrl: string;
-  description: string;
-  certified: boolean;
-  favoriteAt: string;
+interface FavoriteEnriched {
+  favoriteId: number;
+  careManagerId: number;
+  manager: any | null;
+  createdAt: string;
 }
 
 export default function FavoritesPage() {
@@ -41,55 +33,41 @@ export default function FavoritesPage() {
   const queryClient = useQueryClient();
 
   // 찜한 케어 매니저 조회
-  const { data: favorites = [], isLoading } = useQuery({
-    queryKey: ["favorites", user?.uid || user?.email],
+  const { data: favorites = [], isLoading } = useQuery<FavoriteEnriched[]>({
+    queryKey: ["favorites", user?.uid],
     queryFn: async () => {
-      if (!user?.uid && !user?.email) return [];
-      
-      const userId = user?.uid || user?.email;
-      const response = await fetch(`/api/favorites/${userId}`);
-      
-      if (!response.ok) {
-        throw new Error('찜한 케어 매니저 목록을 불러오는데 실패했습니다');
-      }
-      
-      const data = await response.json();
-      
-      // API 응답 데이터를 프론트엔드 형식으로 변환
-      return data.map((favorite: any) => ({
-        id: favorite.careManagerId.toString(),
-        name: `케어 매니저 #${favorite.careManagerId}`,
-        age: 45,
-        rating: 4.5,
-        reviews: 50,
-        experience: "3년",
-        location: "서울 강남구",
-        hourlyRate: 25000,
-        services: ["병원 동행", "말벗"],
-        imageUrl: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=120&h=120&fit=crop",
-        description: "경험 많은 케어 매니저입니다.",
-        certified: true,
-        favoriteAt: favorite.createdAt
-      })) as FavoriteCareManager[];
+      if (!user?.uid) return [];
+      const favs = await favoritesAPI.getFavorites(user.uid);
+      const enriched = await Promise.all(
+        favs.map(async (f: any) => {
+          try {
+            const res = await fetch(`/api/care-managers/${f.careManagerId}`);
+            const mgr = res.ok ? await res.json() : null;
+            return {
+              favoriteId: f.id,
+              careManagerId: f.careManagerId,
+              manager: mgr,
+              createdAt: f.createdAt,
+            } as FavoriteEnriched;
+          } catch {
+            return {
+              favoriteId: f.id,
+              careManagerId: f.careManagerId,
+              manager: null,
+              createdAt: f.createdAt,
+            } as FavoriteEnriched;
+          }
+        })
+      );
+      return enriched;
     },
-    enabled: !!user,
+    enabled: !!user?.uid,
   });
 
   // 찜 해제 뮤테이션
   const removeFavoriteMutation = useMutation({
-    mutationFn: async (favoriteId: string) => {
-      const response = await fetch(`/api/favorites/${favoriteId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('찜 해제에 실패했습니다');
-      }
-      
-      return await response.json();
+    mutationFn: async (favoriteId: number) => {
+      return favoritesAPI.removeFavorite(favoriteId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["favorites"] });
@@ -137,9 +115,9 @@ export default function FavoritesPage() {
     );
   };
 
-  const handleRemoveFavorite = (managerId: string, managerName: string) => {
+  const handleRemoveFavorite = (favoriteId: number, managerName: string) => {
     if (confirm(`정말로 ${managerName} 케어 매니저를 찜 목록에서 제거하시겠습니까?`)) {
-      removeFavoriteMutation.mutate(managerId);
+      removeFavoriteMutation.mutate(favoriteId);
     }
   };
 
@@ -192,7 +170,7 @@ export default function FavoritesPage() {
             <div className="text-2xl font-bold text-yellow-600 mb-1 flex items-center justify-center gap-1">
               <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
               {favorites.length > 0 
-                ? (favorites.reduce((sum, fav) => sum + fav.rating, 0) / favorites.length).toFixed(1)
+                ? (favorites.reduce((sum, fav) => sum + (fav.manager?.rating ?? 0), 0) / favorites.length).toFixed(1)
                 : "0.0"
               }
             </div>
@@ -203,7 +181,7 @@ export default function FavoritesPage() {
         <Card>
           <CardContent className="p-6 text-center">
             <div className="text-2xl font-bold text-blue-600 mb-1">
-              {favorites.filter(fav => fav.certified).length}명
+              {favorites.filter(fav => fav.manager?.certified).length}명
             </div>
             <div className="text-sm text-gray-600">인증된 케어 매니저</div>
           </CardContent>
@@ -231,16 +209,16 @@ export default function FavoritesPage() {
             </CardContent>
           </Card>
         ) : (
-          favorites.map((manager) => (
-            <Card key={manager.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+          favorites.map((fav) => (
+            <Card key={fav.favoriteId} className="overflow-hidden hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex gap-4">
                   {/* 케어 매니저 이미지 */}
                   <div className="flex-shrink-0">
                     <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200">
                       <img
-                        src={normalizeImageUrl(manager.imageUrl)}
-                        alt={manager.name}
+                        src={normalizeImageUrl(fav.manager?.imageUrl)}
+                        alt={fav.manager?.name || `케어 매니저 #${fav.careManagerId}`}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -251,52 +229,56 @@ export default function FavoritesPage() {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-gray-800 text-lg">{manager.name}</h3>
-                          {manager.certified && (
+                          <h3 className="font-bold text-gray-800 text-lg">{fav.manager?.name || `케어 매니저 #${fav.careManagerId}`}</h3>
+                          {fav.manager?.certified && (
                             <Badge className="bg-blue-500 text-white text-xs">인증</Badge>
                           )}
                         </div>
                         <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                          <span>{manager.age}세</span>
+                          {fav.manager?.age ? <span>{fav.manager.age}세</span> : null}
                           <span className="flex items-center gap-1">
                             <Clock className="h-4 w-4" />
-                            경력 {manager.experience}
+                            경력 {fav.manager?.experience ?? '-'}
                           </span>
                           <span className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
-                            {manager.location}
+                            {fav.manager?.location ?? '-'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mb-2">
-                          {renderStars(manager.rating)}
-                          <span className="text-sm font-medium">{manager.rating}</span>
-                          <span className="text-xs text-gray-500">({manager.reviews}개 리뷰)</span>
+                          {renderStars(fav.manager?.rating ?? 0)}
+                          <span className="text-sm font-medium">{fav.manager?.rating ?? 0}</span>
+                          <span className="text-xs text-gray-500">({fav.manager?.reviews ?? 0}개 리뷰)</span>
                         </div>
                       </div>
                       
                       {/* 시간당 요금 */}
                       <div className="text-right">
                         <div className="text-lg font-bold text-blue-600">
-                          {formatPrice(manager.hourlyRate)}
+                          {fav.manager?.hourlyRate ? formatPrice(fav.manager.hourlyRate) : '-'}
                         </div>
                         <div className="text-xs text-gray-500">시간당</div>
                       </div>
                     </div>
                     
-                    <p className="text-sm text-gray-700 mb-3">{manager.description}</p>
+                    {fav.manager?.description ? (
+                      <p className="text-sm text-gray-700 mb-3">{fav.manager.description}</p>
+                    ) : null}
                     
                     {/* 서비스 태그 */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {manager.services.map((service, index) => (
+                    {Array.isArray(fav.manager?.services) && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                      {(fav.manager.services as any[]).map((service, index) => (
                         <Badge key={index} variant="outline" className="text-xs">
                           {service}
                         </Badge>
                       ))}
-                    </div>
+                      </div>
+                    )}
                     
                     <div className="flex items-center justify-between">
                       <div className="text-xs text-gray-500">
-                        찜한 날짜: {formatDate(manager.favoriteAt)}
+                        찜한 날짜: {formatDate(fav.createdAt)}
                       </div>
                       
                       {/* 액션 버튼들 */}
@@ -304,14 +286,14 @@ export default function FavoritesPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleViewProfile(manager.id)}
+                          onClick={() => handleViewProfile(String(fav.careManagerId))}
                         >
                           프로필 보기
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleMessage(manager.id)}
+                          onClick={() => handleMessage(String(fav.careManagerId))}
                         >
                           <MessageCircle className="h-4 w-4 mr-1" />
                           메시지
@@ -319,7 +301,7 @@ export default function FavoritesPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleRemoveFavorite(manager.id, manager.name)}
+                          onClick={() => handleRemoveFavorite(fav.favoriteId, fav.manager?.name || `케어 매니저 #${fav.careManagerId}`)}
                           disabled={removeFavoriteMutation.isPending}
                           className="text-red-600 hover:text-red-700"
                         >

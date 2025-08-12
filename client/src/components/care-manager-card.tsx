@@ -5,6 +5,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { CareManager } from "@shared/schema";
 import { useLocation } from "wouter";
 import { normalizeImageUrl } from '@/lib/url';
+import { Heart } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { favoritesAPI } from "@/lib/api";
 
 interface CareManagerCardProps {
   manager: CareManager;
@@ -16,6 +20,38 @@ interface CareManagerCardProps {
 const CareManagerCard = ({ manager, compact = false, onMessage, onBook }: CareManagerCardProps) => {
   const rating = manager.rating / 10; // Convert from integer to decimal
   const [, setLocation] = useLocation();
+  const { user, setShowAuthModal } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: favorites = [] } = useQuery({
+    queryKey: ["favorites", user?.uid],
+    queryFn: () => favoritesAPI.getFavorites(user!.uid),
+    enabled: !!user?.uid,
+  });
+
+  const existingFavorite = Array.isArray(favorites)
+    ? favorites.find((f: any) => Number(f.careManagerId) === Number(manager.id))
+    : undefined;
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.uid) throw new Error("로그인이 필요합니다.");
+      return favoritesAPI.addFavorite(user.uid, manager.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["favorites", user?.uid] });
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: async () => {
+      if (!existingFavorite) return;
+      return favoritesAPI.removeFavorite(existingFavorite.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["favorites", user?.uid] });
+    },
+  });
 
   const handleCardClick = () => {
     setLocation(`/care-manager/${manager.id}`);
@@ -38,6 +74,19 @@ const CareManagerCard = ({ manager, compact = false, onMessage, onBook }: CareMa
     }
   };
 
+  const toggleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (existingFavorite) {
+      removeMutation.mutate();
+    } else {
+      addMutation.mutate();
+    }
+  };
+
   if (compact) {
     return (
       <Card 
@@ -53,6 +102,15 @@ const CareManagerCard = ({ manager, compact = false, onMessage, onBook }: CareMa
               <AvatarImage src={normalizeImageUrl(manager.imageUrl || undefined)} alt={manager.name} />
               <AvatarFallback className="bg-gradient-to-r from-red-500 to-orange-500 text-white">{manager.name[0]}</AvatarFallback>
             </Avatar>
+            {user && (
+              <button
+                onClick={toggleFavorite}
+                className="ml-auto text-pink-500 hover:text-pink-600"
+                aria-label="즐겨찾기"
+              >
+                <Heart className={`h-5 w-5 ${existingFavorite ? 'fill-pink-500' : ''}`} />
+              </button>
+            )}
             <div className="flex-1">
               <div className="flex items-center space-x-2 mb-1">
                 <h4 className="text-xl font-bold text-gray-800">{manager.name}</h4>
@@ -106,7 +164,7 @@ const CareManagerCard = ({ manager, compact = false, onMessage, onBook }: CareMa
       onClick={handleCardClick}
     >
       <CardContent className="p-6 pb-4 h-full flex flex-col">
-        <div className="flex items-start space-x-4 mb-6">
+        <div className="flex items-start space-x-4 mb-6 relative">
           <div className="relative">
             <Avatar className="w-20 h-20 border-2 border-white/50 shadow-md">
               <AvatarImage src={normalizeImageUrl(manager.imageUrl || undefined)} alt={manager.name} />
@@ -118,6 +176,15 @@ const CareManagerCard = ({ manager, compact = false, onMessage, onBook }: CareMa
               </div>
             )}
           </div>
+          {user && (
+            <button
+              onClick={toggleFavorite}
+              className="absolute top-0 right-0 text-pink-500 hover:text-pink-600"
+              aria-label="즐겨찾기"
+            >
+              <Heart className={`h-6 w-6 ${existingFavorite ? 'fill-pink-500' : ''}`} />
+            </button>
+          )}
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-1">
               <h3 className="text-2xl font-bold text-gray-800">{manager.name}</h3>

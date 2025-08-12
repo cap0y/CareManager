@@ -7,6 +7,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import {
+  ArrowLeft,
+  Star,
+  Truck,
+  ShieldCheck,
+  Clock,
+  Package,
+  Plus,
+  Minus,
+  ShoppingBag,
+  Send,
+  MessageSquare,
+  Reply,
+  AlertCircle,
+} from "lucide-react";
+import { Heart } from "lucide-react";
+import { useQuery as useRQ, useMutation as useMut, useQueryClient as useQC } from "@tanstack/react-query";
+import { favoritesAPI } from "@/lib/api";
 import { apiRequest } from "@/lib/queryClient";
 import { Input } from "@/components/ui/input";
 import BookingModal from "@/components/booking-modal";
@@ -62,6 +80,35 @@ const CareManagerDetail = ({ id }: CareManagerDetailProps) => {
   const commentRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const [introContents, setIntroContents] = useState<IntroContent[]>([]);
+  const qc = useQC();
+  const { data: myFavorites = [] } = useRQ({
+    queryKey: ["favorites", user?.uid],
+    queryFn: () => favoritesAPI.getFavorites(user!.uid),
+    enabled: !!user?.uid,
+  });
+  const existingFavorite = Array.isArray(myFavorites)
+    ? myFavorites.find((f: any) => Number(f.careManagerId) === Number(id))
+    : undefined;
+  const addFav = useMut({
+    mutationFn: async () => {
+      if (!user?.uid) throw new Error("로그인이 필요합니다.");
+      const careManagerId = Number(id);
+      if (!careManagerId) throw new Error("케어 매니저 정보가 없습니다.");
+      return favoritesAPI.addFavorite(user.uid, careManagerId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["favorites", user?.uid] });
+    },
+  });
+  const removeFav = useMut({
+    mutationFn: async () => {
+      if (!existingFavorite) return;
+      return favoritesAPI.removeFavorite(existingFavorite.id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["favorites", user?.uid] });
+    },
+  });
   
   // 케어 매니저 정보 가져오기
   const { data: manager, isLoading } = useQuery<CareManager>({

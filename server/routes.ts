@@ -1130,7 +1130,13 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const userId = req.params.userId;
       const favorites = await storage.getFavorites(userId);
-      res.json(favorites);
+      const enriched = await Promise.all(
+        favorites.map(async (f: any) => {
+          const manager = await storage.getCareManager(Number(f.careManagerId));
+          return { ...f, manager };
+        })
+      );
+      res.json(enriched);
     } catch (error) {
       console.error("찜한 케어 매니저 조회 오류:", error);
       res.status(500).json({ error: "찜한 케어 매니저 목록을 불러오는데 실패했습니다" });

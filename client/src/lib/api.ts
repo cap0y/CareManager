@@ -315,9 +315,9 @@ export const cartAPI = {
     const { data } = await api.post(`/api/users/${uid}/cart`, body);
     return data;
   },
-  updateItem: async (userId: string | number, itemId: string | number, payload: { quantity: number }) => {
+  updateItem: async (userId: string | number, itemId: string | number, payload: { quantity?: number; selected_options?: any }) => {
     const uid = String(userId);
-    const { data } = await api.put(`/api/users/${uid}/cart/${itemId}`, { quantity: payload.quantity });
+    const { data } = await api.put(`/api/users/${uid}/cart/${itemId}`, payload);
     return data;
   },
   removeItem: async (userId: string | number, itemId: string | number) => {
@@ -329,7 +329,25 @@ export const cartAPI = {
     const uid = String(userId);
     const { data } = await api.delete(`/api/users/${uid}/cart`);
     return data;
-  }
+  },
+};
+
+// 즐겨찾기(케어 매니저 찜) API
+export const favoritesAPI = {
+  getFavorites: async (userId: string | number) => {
+    const uid = String(userId);
+    const { data } = await api.get(`/api/favorites/${uid}`);
+    return data;
+  },
+  addFavorite: async (userId: string | number, careManagerId: string | number) => {
+    const body = { userId: String(userId), careManagerId: Number(careManagerId) };
+    const { data } = await api.post(`/api/favorites`, body);
+    return data;
+  },
+  removeFavorite: async (favoriteId: string | number) => {
+    const { data } = await api.delete(`/api/favorites/${favoriteId}`);
+    return data;
+  },
 };
 
 export async function changePassword(params: { userId: string | number; currentPassword: string; newPassword: string }) {
