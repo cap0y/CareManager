@@ -1934,34 +1934,34 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
                 <CardHeader className="border-b border-gray-100 bg-gray-50">
                   <h3 className="text-xl font-bold text-gray-800">예약 관리</h3>
                 </CardHeader>
-                <CardContent className="p-6">
+                <CardContent className="p-2">
                   <Tabs defaultValue="pending">
                     <TabsList className="mb-4">
                       <TabsTrigger value="pending">승인 대기 ({pendingBookings})</TabsTrigger>
-                      <TabsTrigger value="confirmed">승인된 예약 ({confirmedBookings})</TabsTrigger>
-                      <TabsTrigger value="completed">완료된 예약 ({completedBookings})</TabsTrigger>
-                      <TabsTrigger value="canceled">취소된 예약 ({canceledBookings})</TabsTrigger>
+                      <TabsTrigger value="confirmed">승인예약 ({confirmedBookings})</TabsTrigger>
+                      <TabsTrigger value="completed">완료예약 ({completedBookings})</TabsTrigger>
+                      <TabsTrigger value="canceled">취소예약 ({canceledBookings})</TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="pending" className="space-y-4">
+                    <TabsContent value="pending" className="space-y-2 sm:space-y-3">
                       {bookings.filter(b => b.status === 'pending').length === 0 ? (
                         <p className="text-gray-500 text-center py-10">대기 중인 예약이 없습니다.</p>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-2 sm:space-y-3">
                           {bookings
                             .filter(booking => booking.status === 'pending')
                             .map((booking) => (
                             <div
                               key={booking.id}
-                              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                              className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow"
                             >
                               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div>
-                                  <h4 className="font-bold text-lg">고객 {booking.userId}</h4>
-                                  <p className="text-gray-600">
+                                  <h4 className="font-bold text-base sm:text-lg">고객 {booking.userId}</h4>
+                                  <p className="text-gray-600 text-sm sm:text-base">
                                     <i className="fas fa-calendar mr-1 text-gray-400"></i> {format(new Date(booking.date), 'yyyy.MM.dd HH:mm', { locale: ko })}
                                   </p>
-                                  <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex items-center gap-2 mt-0.5 sm:mt-1">
                                     <Badge className="bg-blue-500">서비스 {booking.serviceId}</Badge>
                                     <span className="text-sm text-gray-500">
                                       {booking.totalAmount.toLocaleString()}원

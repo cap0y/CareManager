@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { productAPI } from "@/lib/api";
+import { productAPI, cartAPI } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -197,29 +197,58 @@ export default function CheckoutPage() {
     }
   };
 
+  // 카트 아이템 로드 (직접구매가 아닐 때)
+  const { data: cartItems = [], isLoading: isLoadingCart } = useQuery({
+    queryKey: ["checkout-cart", user?.uid, isDirectCheckout],
+    queryFn: async () => {
+      if (!user?.uid || isDirectCheckout) return [];
+      return await cartAPI.getCart(user.uid);
+    },
+    enabled: !!user?.uid && !isDirectCheckout,
+  });
+
+  // 아이템 표준화
+  type StandardItem = {
+    product_id: string | number;
+    product: any;
+    quantity: number;
+    selected_options: SelectedOption[];
+  };
+
+  const normalizeDirect = (item: any): StandardItem => ({
+    product_id: item.product_id || item.product?.id,
+    product: item.product,
+    quantity: Number(item.quantity) || 1,
+    selected_options: Array.isArray(item.selected_options) ? item.selected_options : [],
+  });
+
+  const normalizeCart = (item: any): StandardItem => ({
+    product_id: item.productId || item.product?.id,
+    product: item.product,
+    quantity: Number(item.quantity) || 1,
+    selected_options: Array.isArray(item.selectedOptions)
+      ? item.selectedOptions.map((o: any) => ({
+          name: o.name,
+          value: o.value,
+          price_adjust: Number(o.price_adjust) || 0,
+        }))
+      : [],
+  });
+
+  const standardItems: StandardItem[] = isDirectCheckout
+    ? (directCheckoutItems || []).map(normalizeDirect)
+    : (cartItems || []).map(normalizeCart);
+
   // 총 상품 금액 계산
   const calculateItemsPrice = () => {
-    let total = 0;
-    if (isDirectCheckout) {
-      directCheckoutItems.forEach((item) => {
-        // 상품 기본 가격 (할인가 또는 정상가)
-        const basePrice = item.product?.discount_price || item.product?.price || 0;
-
-        // 옵션 추가 가격 계산
-        let optionPrice = 0;
-        if (item.selected_options && Array.isArray(item.selected_options)) {
-          optionPrice = item.selected_options.reduce(
-            (sum: number, opt: SelectedOption) => sum + (opt.price_adjust || 0),
-            0,
-          );
-        }
-
-        // 상품 총 가격 = (기본가 + 옵션가) * 수량
-        const itemTotal = (basePrice + optionPrice) * item.quantity;
-        total += itemTotal;
-      });
-    }
-    return total;
+    return standardItems.reduce((total, item) => {
+      const basePrice = item.product?.discount_price || item.product?.price || 0;
+      const optionPrice = (item.selected_options || []).reduce(
+        (sum: number, opt: SelectedOption) => sum + (Number(opt.price_adjust) || 0),
+        0,
+      );
+      return total + (Number(basePrice) + optionPrice) * (Number(item.quantity) || 1);
+    }, 0);
   };
 
   // 배송비 계산 (3만원 이상 무료, 그 이하는 3천원)
@@ -233,8 +262,8 @@ export default function CheckoutPage() {
     return calculateItemsPrice() + calculateShippingFee();
   };
 
-  // 상품 목록
-  const displayItems = directCheckoutItems;
+  // 상품 목록 (표준화된 아이템 사용)
+  const displayItems = standardItems;
 
   // 주문 처리
   const handlePlaceOrder = async () => {
@@ -345,10 +374,10 @@ export default function CheckoutPage() {
         customData: {
           userId: (user as any)?.id || user?.email, // user.id가 없으면 email 사용
           addressId: selectedAddress,
-          items: displayItems.map((item: CartItem) => ({
-            product_id: item.product_id,
+          items: displayItems.map((item: any) => ({
+            product_id: item.product_id || item.product?.id,
             quantity: item.quantity,
-            selected_options: item.selected_options,
+            selected_options: item.selected_options || [],
           })),
         },
         customer: {
@@ -619,7 +648,7 @@ export default function CheckoutPage() {
   }, [user, isLoadingAddresses, displayItems.length, isProcessing]);
 
   // 상품 목록이 비어있고 로딩 중이 아닐 때 처리
-  if (!isDirectCheckout && !isProcessing) {
+  if (!isDirectCheckout && !isProcessing && !isLoadingCart && displayItems.length === 0) {
     return (
       <div className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="text-center py-16 space-y-4">
@@ -651,7 +680,7 @@ export default function CheckoutPage() {
   }
 
   // 로딩 중이거나 조건 확인 중일 때 로딩 표시
-  if ((!isDirectCheckout && displayItems.length === 0) || isProcessing) {
+  if ((!isDirectCheckout && (isLoadingCart || displayItems.length === 0)) || isProcessing) {
     return (
       <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-[60vh]">
         <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -894,11 +923,7 @@ export default function CheckoutPage() {
                   <div className="w-12 h-12 bg-gray-200 rounded overflow-hidden flex-shrink-0">
                     {item.product && item.product.images && item.product.images.length > 0 ? (
                       <img
-                        src={
-                          typeof item.product.images[0] === "string"
-                            ? item.product.images[0]
-                            : item.product.images[0].url
-                        }
+                        src={typeof item.product.images[0] === "string" ? item.product.images[0] : (item.product.images[0]?.url || "")}
                         alt={item.product?.title || "상품 이미지"}
                         className="w-full h-full object-cover"
                       />
@@ -926,13 +951,6 @@ export default function CheckoutPage() {
                         ))}
                       </div>
                     )}
-                  </div>
-                  <div className="font-medium text-right">
-                    {Math.floor(
-                      ((item.product?.discount_price || item.product?.price || 0) +
-                        (item.selected_options?.reduce((sum: number, opt: SelectedOption) => sum + opt.price_adjust, 0) || 0)) *
-                        item.quantity,
-                    ).toLocaleString()}원
                   </div>
                 </div>
               ))}

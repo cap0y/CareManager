@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { productAPI } from "@/lib/api";
+import { productAPI, cartAPI } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -503,13 +503,16 @@ export default function ProductDetailPage() {
   const addToCartMutation = useMutation({
     mutationFn: async () => {
       if (!productId) throw new Error("상품 ID가 없습니다.");
+      if (!user?.uid) throw new Error("로그인이 필요합니다.");
 
-      // 선택된 옵션 데이터 구성
-      const optionsData =
-        selectedOptions.length > 0 ? selectedOptions : undefined;
+      const optionsData = selectedOptions.length > 0 ? selectedOptions : undefined;
 
-      // 장바구니 API가 구현되면 사용
-      throw new Error("장바구니 기능이 아직 구현되지 않았습니다.");
+      const result = await cartAPI.addItem(user.uid, {
+        productId: productId,
+        quantity: quantity,
+        selected_options: optionsData,
+      });
+      return result;
     },
     onSuccess: (data) => {
       toast({

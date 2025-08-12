@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { normalizeImageUrl } from '@/lib/url';
+import { cartAPI } from '@/lib/api';
 
 interface HeaderProps {}
 
@@ -37,6 +38,22 @@ const Header = ({}: HeaderProps) => {
   // 읽지 않은 알림 개수
   const unreadCount = notifications.filter((notif: any) => !notif.is_read).length;
 
+  // 장바구니 수량 가져오기
+  const { data: cartItems = [], refetch: refetchCart } = useQuery({
+    queryKey: ["header-cart", user?.uid],
+    queryFn: async () => {
+      if (!user?.uid) return [];
+      try {
+        const items = await cartAPI.getCart(user.uid);
+        return Array.isArray(items) ? items : [];
+      } catch (e) {
+        return [];
+      }
+    },
+    enabled: !!user?.uid,
+  });
+  const cartCount = Array.isArray(cartItems) ? cartItems.reduce((sum: number, it: any) => sum + (Number(it.quantity) || 0), 0) : 0;
+
   // Close profile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -65,6 +82,15 @@ const Header = ({}: HeaderProps) => {
 
   const handleSearchClick = () => {
     setLocation('/search');
+  };
+
+  const handleCartClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    setLocation('/cart');
   };
 
   const handleProfileMenuClick = (path: string) => {
@@ -119,7 +145,21 @@ const Header = ({}: HeaderProps) => {
             >
               <i className="fas fa-search text-gray-600"></i>
             </button>
-            
+
+            {/* 장바구니 아이콘 */}
+            <button
+              className="relative p-2 rounded-full hover:bg-gray-100"
+              onClick={handleCartClick}
+              aria-label="장바구니"
+            >
+              <i className="fas fa-shopping-cart text-gray-600"></i>
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-semibold rounded-full px-1.5 py-0.5 min-w-[16px] text-center">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
             {/* 알림 아이콘 */}
             {user && (
               <div className="relative">

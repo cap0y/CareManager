@@ -369,14 +369,14 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
           상품을 불러오는 데 문제가 발생했습니다. 다시 시도해주세요.
         </div>
       ) : data && data.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {data.map((product: Product) => (
             <div
               key={product.id}
               className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow border border-gray-200 cursor-pointer"
               onClick={() => handleProductClick(product)}
             >
-              <div className="h-48 bg-gray-200 relative">
+              <div className="h-36 sm:h-44 md:h-48 bg-gray-200 relative">
                 {product.images && product.images.length > 0 ? (
                   <img
                     src={getImageUrl(product.images[0])}
@@ -412,7 +412,7 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
                   </div>
                 )}
               </div>
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 <div className="flex items-center justify-between mb-1">
                   <Badge variant="outline" className="text-xs">
                     {getCategoryName(product)}
@@ -427,16 +427,16 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
                     </div>
                   )}
                 </div>
-                <h3 className="font-medium text-gray-900 mb-1 truncate">
+                <h3 className="font-medium text-gray-900 mb-0.5 truncate">
                   {product.title}
                 </h3>
-                <p className="text-gray-600 text-sm mb-2 line-clamp-2 h-10">
+                <p className="hidden sm:block text-gray-600 text-sm mb-1 sm:mb-2 line-clamp-2">
                   {product.description ? stripHtml(product.description) : ""}
                 </p>
                 {/* 옵션 정보 표시 */}
                 {(product as any).options &&
                   (product as any).options.length > 0 && (
-                    <div className="text-xs text-gray-500 mb-2">
+                    <div className="hidden sm:block text-xs text-gray-500 mb-1 sm:mb-2">
                       <span className="font-medium">옵션:</span>{" "}
                       {(product as any).options
                         .map((opt: any) => opt.name)

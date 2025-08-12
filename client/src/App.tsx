@@ -27,6 +27,7 @@ import FavoritesPage from './pages/favorites';
 import NotificationsPage from './pages/notifications';
 import PrivacyPage from './pages/privacy';
 import SupportPage from './pages/support';
+import CartPage from "./pages/cart";
 
 // 헤더와 푸터가 포함된 공통 레이아웃 컴포넌트
 const Layout = ({ children, path }: { children: React.ReactNode, path: string }) => {
@@ -98,6 +99,13 @@ function Router() {
         </Route>
         <Route path="/support">
           {() => <Layout path="/support"><SupportPage /></Layout>}
+        </Route>
+        <Route path="/cart">
+          {(params) => (
+            <Layout path="/cart">
+              <CartPage />
+            </Layout>
+          )}
         </Route>
         <Route>
           {() => <Layout path="/404"><NotFound /></Layout>}

@@ -298,6 +298,40 @@ export const productAPI = {
   }
 };
 
+// 장바구니 API
+export const cartAPI = {
+  getCart: async (userId: string | number) => {
+    const uid = String(userId);
+    const { data } = await api.get(`/api/users/${uid}/cart`);
+    return data;
+  },
+  addItem: async (userId: string | number, payload: { productId: string | number; quantity?: number; selected_options?: any }) => {
+    const uid = String(userId);
+    const body = {
+      productId: Number(payload.productId),
+      quantity: payload.quantity ?? 1,
+      selected_options: payload.selected_options ?? null,
+    };
+    const { data } = await api.post(`/api/users/${uid}/cart`, body);
+    return data;
+  },
+  updateItem: async (userId: string | number, itemId: string | number, payload: { quantity: number }) => {
+    const uid = String(userId);
+    const { data } = await api.put(`/api/users/${uid}/cart/${itemId}`, { quantity: payload.quantity });
+    return data;
+  },
+  removeItem: async (userId: string | number, itemId: string | number) => {
+    const uid = String(userId);
+    const { data } = await api.delete(`/api/users/${uid}/cart/${itemId}`);
+    return data;
+  },
+  clear: async (userId: string | number) => {
+    const uid = String(userId);
+    const { data } = await api.delete(`/api/users/${uid}/cart`);
+    return data;
+  }
+};
+
 export async function changePassword(params: { userId: string | number; currentPassword: string; newPassword: string }) {
   const res = await fetch('/api/auth/change-password', {
     method: 'POST',
