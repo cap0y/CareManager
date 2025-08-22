@@ -28,6 +28,7 @@ import NotificationsPage from './pages/notifications';
 import PrivacyPage from './pages/privacy';
 import SupportPage from './pages/support';
 import CartPage from "./pages/cart";
+import AvatarChatPage from "./pages/avatar-chat";
 
 // 헤더와 푸터가 포함된 공통 레이아웃 컴포넌트
 const Layout = ({ children, path }: { children: React.ReactNode, path: string }) => {
@@ -65,6 +66,9 @@ function Router() {
         </Route>
         <Route path="/chat">
           {() => <Layout path="/chat"><Chat /></Layout>}
+        </Route>
+        <Route path="/avatar-chat">
+          {() => <Layout path="/avatar-chat"><AvatarChatPage /></Layout>}
         </Route>
         <Route path="/profile">
           {() => <Layout path="/profile"><Profile /></Layout>}

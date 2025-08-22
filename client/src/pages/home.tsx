@@ -167,6 +167,11 @@ const Home = () => {
     setLocation(`/search?service=${encodeURIComponent(service.name)}`);
   };
 
+  // 말벗(아바타) 대화로 이동
+  const goAvatarChat = () => {
+    setLocation('/avatar-chat');
+  };
+
   // 공지사항 로드
   const [notices, setNotices] = useState<Notice[]>([]);
   
@@ -290,6 +295,13 @@ const Home = () => {
                 >
                   <i className="fas fa-search mr-2"></i>
                   검색
+                </Button>
+                <Button
+                  className="ml-2 bg-white/30 hover:bg-white/40 text-white rounded-full px-6 py-2"
+                  onClick={goAvatarChat}
+                >
+                  <i className="fas fa-comments mr-2"></i>
+                  말벗
                 </Button>
               </div>
             </div>
