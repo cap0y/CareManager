@@ -9,7 +9,7 @@ const AvatarChatPage = () => {
     const url =
       envUrl && envUrl.trim().length > 0
         ? envUrl.trim()
-        : "http://decomsoft.com:12393";
+        : "https://decomsoft.com:12393";
     // 마지막 슬래시 정리
     return url.endsWith("/") ? url.slice(0, -1) : url;
   }, []);
