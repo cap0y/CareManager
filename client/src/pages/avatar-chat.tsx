@@ -9,7 +9,7 @@ const AvatarChatPage = () => {
     const url =
       envUrl && envUrl.trim().length > 0
         ? envUrl.trim()
-        : "https://decomsoft.com/vtuber";
+        : "http://localhost:12393";
     // 마지막 슬래시 정리
     return url.endsWith("/") ? url.slice(0, -1) : url;
   }, []);
@@ -18,14 +18,17 @@ const AvatarChatPage = () => {
   const iframeSrc = `${vtuberBaseUrl}/`;
 
   return (
-    <div className="min-h-[calc(100vh-120px)] w-full bg-black/5">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <div className="min-h-[100dvh] w-full bg-black/5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-4 py-1">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">
           말벗(아바타) 대화
         </h1>
+        {/* 모바일 하단 잘림 방지를 위해 100dvh 사용, iOS 안전 영역 고려 */}
         <div
-          className="w-full rounded-xl overflow-hidden shadow border bg-white"
-          style={{ height: "calc(100vh - 200px)" }}
+          className="w-full rounded-xl shadow border bg-white"
+          style={{
+            height: "calc(100dvh - 120px - env(safe-area-inset-bottom, 0px))",
+          }}
         >
           <iframe
             title="Open-LLM-VTuber"
