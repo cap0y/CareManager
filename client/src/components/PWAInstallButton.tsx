@@ -89,13 +89,7 @@ export default function PWAInstaller() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      // iOS 사파리 등 beforeinstallprompt 미지원 브라우저용 안내
-      alert(
-        '설치 안내: 브라우저 메뉴에서 "홈 화면에 추가"를 선택하여 설치하세요.',
-      );
-      return;
-    }
+    if (!deferredPrompt) return;
 
     try {
       // 사용자에게 설치 프롬프트 표시
@@ -114,6 +108,30 @@ export default function PWAInstaller() {
       setShowInstallPrompt(false);
     }
   };
+
+  // 사용자의 첫 상호작용 시 자동으로 설치 프롬프트를 띄움(브라우저 요구: 사용자 제스처 필요)
+  useEffect(() => {
+    if (!deferredPrompt || isStandalone || !showInstallPrompt) return;
+    const trigger = async () => {
+      try {
+        await deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+      } catch (_) {
+      } finally {
+        setDeferredPrompt(null);
+        setShowInstallPrompt(false);
+        setForceHomePopup(false);
+        document.removeEventListener("click", trigger, true);
+        document.removeEventListener("touchstart", trigger, true);
+      }
+    };
+    document.addEventListener("click", trigger, true);
+    document.addEventListener("touchstart", trigger, true);
+    return () => {
+      document.removeEventListener("click", trigger, true);
+      document.removeEventListener("touchstart", trigger, true);
+    };
+  }, [deferredPrompt, isStandalone, showInstallPrompt]);
 
   const handleDismissInstall = () => {
     setShowInstallPrompt(false);
