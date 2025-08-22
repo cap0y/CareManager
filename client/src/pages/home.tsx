@@ -306,7 +306,7 @@ const Home = () => {
                   onClick={goAvatarChat}
                 >
                   <i className="fas fa-comments mr-2"></i>
-                  말벗
+                  말벗(아바타) 대화
                 </Button>
               </div>
             </div>

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navigation from "@/components/navigation";
+import PWAInstaller from "@/components/PWAInstallButton";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import AuthModal from "@/components/auth-modal";
@@ -127,6 +128,8 @@ export default function App() {
         <TooltipProvider>
           <Router />
           <Toaster />
+          {/* 홈 화면에 설치 팝업 노출 */}
+          <PWAInstaller />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
