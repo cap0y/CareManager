@@ -1,35 +1,40 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Download, X } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Download, X } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
   readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed';
+    outcome: "accepted" | "dismissed";
     platform: string;
   }>;
   prompt(): Promise<void>;
 }
 
 export default function PWAInstaller() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showUpdateAvailable, setShowUpdateAvailable] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [forceHomePopup, setForceHomePopup] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       // PWA 설치 조건을 충족하는 경우에만 처리
-      console.log('PWA 설치 조건 충족: beforeinstallprompt 이벤트 발생');
+      console.log("PWA 설치 조건 충족: beforeinstallprompt 이벤트 발생");
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      
+
       // 설치 상태 체크
-      if (window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone) {
+      if (
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (navigator as any).standalone
+      ) {
         setIsStandalone(true);
         return;
       }
-      
+
       // 즉시 설치 프롬프트 표시
       setTimeout(() => {
         setShowInstallPrompt(true);
@@ -39,32 +44,56 @@ export default function PWAInstaller() {
     const handleAppInstalled = () => {
       setDeferredPrompt(null);
       setShowInstallPrompt(false);
-      console.log('PWA가 설치되었습니다');
+      console.log("PWA가 설치되었습니다");
     };
 
     // 이벤트 리스너 등록
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
 
     // Service Worker 등록 및 업데이트 감지 (public/sw.js 기준)
-    if ('serviceWorker' in navigator) {
+    if ("serviceWorker" in navigator) {
       navigator.serviceWorker
-        .register('/sw.js')
-        .catch((e) => console.warn('서비스워커 등록 실패(이미 등록되었을 수 있음):', e));
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        .register("/sw.js")
+        .catch((e) =>
+          console.warn("서비스워커 등록 실패(이미 등록되었을 수 있음):", e),
+        );
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
         setShowUpdateAvailable(true);
       });
     }
 
+    // 홈 화면에서는 설치 이벤트가 없더라도 강제로 팝업 표시
+    const onHome =
+      typeof window !== "undefined" &&
+      window.location &&
+      window.location.pathname === "/";
+    if (
+      onHome &&
+      !(
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (navigator as any).standalone
+      )
+    ) {
+      setForceHomePopup(true);
+      setShowInstallPrompt(true);
+    }
+
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
+      window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
-      console.log('설치 프롬프트가 준비되지 않았습니다');
+      // iOS 사파리 등 beforeinstallprompt 미지원 브라우저용 안내
+      alert(
+        '설치 안내: 브라우저 메뉴에서 "홈 화면에 추가"를 선택하여 설치하세요.',
+      );
       return;
     }
 
@@ -72,14 +101,14 @@ export default function PWAInstaller() {
       // 사용자에게 설치 프롬프트 표시
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        console.log('사용자가 PWA 설치를 수락했습니다');
+
+      if (outcome === "accepted") {
+        console.log("사용자가 PWA 설치를 수락했습니다");
       } else {
-        console.log('사용자가 PWA 설치를 거부했습니다');
+        console.log("사용자가 PWA 설치를 거부했습니다");
       }
     } catch (error) {
-      console.error('PWA 설치 중 오류 발생:', error);
+      console.error("PWA 설치 중 오류 발생:", error);
     } finally {
       setDeferredPrompt(null);
       setShowInstallPrompt(false);
@@ -89,22 +118,22 @@ export default function PWAInstaller() {
   const handleDismissInstall = () => {
     setShowInstallPrompt(false);
     // 24시간 동안 다시 표시하지 않음
-    localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    localStorage.setItem("pwa-install-dismissed", Date.now().toString());
   };
 
   const handleUpdateClick = () => {
     window.location.reload();
   };
 
-  // 이미 설치된 상태이거나 24시간 내에 거부한 경우 표시하지 않음
+  // 표시 조건: 홈 강제 표시 또는 일반 표시, 단 설치됨이면 숨김
   const shouldShowInstallPrompt = () => {
-    if (!showInstallPrompt || !deferredPrompt) return false;
-    
+    if (!showInstallPrompt && !forceHomePopup) return false;
+
     // 이미 설치된 상태인지 확인
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (window.matchMedia("(display-mode: standalone)").matches) {
       return false;
     }
-    
+
     // 24시간 제한 임시 비활성화 (디버깅 목적)
     // const dismissedTime = localStorage.getItem('pwa-install-dismissed');
     // if (dismissedTime) {
@@ -114,7 +143,7 @@ export default function PWAInstaller() {
     //     return false;
     //   }
     // }
-    
+
     return true;
   };
 
@@ -144,11 +173,7 @@ export default function PWAInstaller() {
                 <Download className="w-4 h-4 mr-1" />
                 설치
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleDismissInstall}
-              >
+              <Button size="sm" variant="ghost" onClick={handleDismissInstall}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
