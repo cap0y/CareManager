@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const AvatarChatPage = () => {
   const vtuberBaseUrl = useMemo(() => {
@@ -9,13 +9,35 @@ const AvatarChatPage = () => {
     const url =
       envUrl && envUrl.trim().length > 0
         ? envUrl.trim()
-        : "http://localhost:12393";
+        : "https://decomsoft.com/vtuber";
     // 마지막 슬래시 정리
     return url.endsWith("/") ? url.slice(0, -1) : url;
   }, []);
 
   // 메인 UI가 없는 경우(404) 사용자가 직접 주소창에서 /web-tool로 이동할 수 있도록
   const iframeSrc = `${vtuberBaseUrl}/`;
+
+  // 모바일 화면 유지 + 설정(사이드바) 접근용 데스크톱 보기 토글
+  const [desktopMode, setDesktopMode] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(1);
+  const desktopWidth = 1200; // 내부 앱이 사이드바를 노출하는 기준 폭
+
+  useEffect(() => {
+    if (!desktopMode) {
+      setScale(1);
+      return;
+    }
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const width = entry.contentRect.width;
+      const newScale = Math.min(1, width / desktopWidth);
+      setScale(newScale);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [desktopMode]);
 
   return (
     <div className="min-h-[100dvh] w-full bg-black/5">
@@ -25,17 +47,55 @@ const AvatarChatPage = () => {
         </h1>
         {/* 모바일 하단 잘림 방지를 위해 100dvh 사용, iOS 안전 영역 고려 */}
         <div
-          className="w-full rounded-xl shadow border bg-white"
+          ref={containerRef}
+          className="relative w-full rounded-xl shadow border bg-white overflow-hidden"
           style={{
             height: "calc(100dvh - 120px - env(safe-area-inset-bottom, 0px))",
           }}
         >
-          <iframe
-            title="Open-LLM-VTuber"
-            src={iframeSrc}
-            className="w-full h-full border-0"
-            allow="microphone; camera; clipboard-read; clipboard-write; autoplay"
-          />
+          {/* 토글 버튼 */}
+          <div className="absolute right-3 top-3 z-10 flex gap-2">
+            {!desktopMode ? (
+              <button
+                className="px-3 py-1 rounded-md text-xs bg-indigo-600 text-white shadow"
+                onClick={() => setDesktopMode(true)}
+              >
+                설정 열기
+              </button>
+            ) : (
+              <button
+                className="px-3 py-1 rounded-md text-xs bg-gray-700 text-white shadow"
+                onClick={() => setDesktopMode(false)}
+              >
+                기본 보기
+              </button>
+            )}
+          </div>
+
+          {desktopMode ? (
+            <div
+              style={{
+                width: `${desktopWidth}px`,
+                height: `calc((100dvh - 120px - env(safe-area-inset-bottom, 0px)) / ${scale})`,
+                transform: `scale(${scale})`,
+                transformOrigin: "top left",
+              }}
+            >
+              <iframe
+                title="Open-LLM-VTuber"
+                src={iframeSrc}
+                className="w-full h-full border-0"
+                allow="microphone; camera; clipboard-read; clipboard-write; autoplay"
+              />
+            </div>
+          ) : (
+            <iframe
+              title="Open-LLM-VTuber"
+              src={iframeSrc}
+              className="w-full h-full border-0"
+              allow="microphone; camera; clipboard-read; clipboard-write; autoplay"
+            />
+          )}
         </div>
       </div>
     </div>
