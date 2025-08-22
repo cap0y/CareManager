@@ -16,30 +16,12 @@ export default function PWAInstaller() {
     useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showUpdateAvailable, setShowUpdateAvailable] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [forceHomePopup, setForceHomePopup] = useState(false);
-  const [showManualGuide, setShowManualGuide] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
-      // PWA 설치 조건을 충족하는 경우에만 처리
-      console.log("PWA 설치 조건 충족: beforeinstallprompt 이벤트 발생");
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-
-      // 설치 상태 체크
-      if (
-        window.matchMedia("(display-mode: standalone)").matches ||
-        (navigator as any).standalone
-      ) {
-        setIsStandalone(true);
-        return;
-      }
-
-      // 즉시 설치 프롬프트 표시
-      setTimeout(() => {
-        setShowInstallPrompt(true);
-      }, 1000); // 1초 후 표시
+      setShowInstallPrompt(true);
     };
 
     const handleAppInstalled = () => {
@@ -52,32 +34,11 @@ export default function PWAInstaller() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
 
-    // Service Worker 등록 및 업데이트 감지 (public/sw.js 기준)
+    // Service Worker 업데이트 감지 (등록은 main.tsx에서 수행)
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .catch((e) =>
-          console.warn("서비스워커 등록 실패(이미 등록되었을 수 있음):", e),
-        );
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         setShowUpdateAvailable(true);
       });
-    }
-
-    // 홈 화면에서는 설치 이벤트가 없더라도 강제로 팝업 표시
-    const onHome =
-      typeof window !== "undefined" &&
-      window.location &&
-      window.location.pathname === "/";
-    if (
-      onHome &&
-      !(
-        window.matchMedia("(display-mode: standalone)").matches ||
-        (navigator as any).standalone
-      )
-    ) {
-      setForceHomePopup(true);
-      setShowInstallPrompt(true);
     }
 
     return () => {
@@ -90,90 +51,33 @@ export default function PWAInstaller() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      setShowManualGuide(true);
-      return;
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      console.log("사용자가 PWA 설치를 수락했습니다");
+    } else {
+      console.log("사용자가 PWA 설치를 거부했습니다");
     }
-
-    try {
-      // 사용자에게 설치 프롬프트 표시
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-
-      if (outcome === "accepted") {
-        console.log("사용자가 PWA 설치를 수락했습니다");
-      } else {
-        console.log("사용자가 PWA 설치를 거부했습니다");
-      }
-    } catch (error) {
-      console.error("PWA 설치 중 오류 발생:", error);
-    } finally {
-      setDeferredPrompt(null);
-      setShowInstallPrompt(false);
-    }
+    setDeferredPrompt(null);
+    setShowInstallPrompt(false);
   };
-
-  // 사용자의 첫 상호작용 시 자동으로 설치 프롬프트를 띄움(브라우저 요구: 사용자 제스처 필요)
-  useEffect(() => {
-    if (!deferredPrompt || isStandalone || !showInstallPrompt) return;
-    const trigger = async () => {
-      try {
-        await deferredPrompt.prompt();
-        await deferredPrompt.userChoice;
-      } catch (_) {
-      } finally {
-        setDeferredPrompt(null);
-        setShowInstallPrompt(false);
-        setForceHomePopup(false);
-        document.removeEventListener("click", trigger, true);
-        document.removeEventListener("touchstart", trigger, true);
-      }
-    };
-    document.addEventListener("click", trigger, true);
-    document.addEventListener("touchstart", trigger, true);
-    return () => {
-      document.removeEventListener("click", trigger, true);
-      document.removeEventListener("touchstart", trigger, true);
-    };
-  }, [deferredPrompt, isStandalone, showInstallPrompt]);
 
   const handleDismissInstall = () => {
     setShowInstallPrompt(false);
-    setForceHomePopup(false);
-    setDeferredPrompt(null);
-    // 24시간 동안 다시 표시하지 않음 (원하면 주석 해제)
-    // localStorage.setItem('pwa-install-dismissed', Date.now().toString());
   };
 
   const handleUpdateClick = () => {
     window.location.reload();
   };
 
-  // 표시 조건: 홈 강제 표시 또는 일반 표시, 단 설치됨이면 숨김
   const shouldShowInstallPrompt = () => {
-    if (!showInstallPrompt && !forceHomePopup) return false;
-
-    // 이미 설치된 상태인지 확인
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      return false;
-    }
-
-    // 24시간 제한 임시 비활성화 (디버깅 목적)
-    // const dismissedTime = localStorage.getItem('pwa-install-dismissed');
-    // if (dismissedTime) {
-    //   const timeDiff = Date.now() - parseInt(dismissedTime);
-    //   const twentyFourHours = 24 * 60 * 60 * 1000;
-    //   if (timeDiff < twentyFourHours) {
-    //     return false;
-    //   }
-    // }
-
+    if (!showInstallPrompt) return false;
+    if (window.matchMedia("(display-mode: standalone)").matches) return false;
     return true;
   };
 
-  if (isStandalone) return null;
-  if (!shouldShowInstallPrompt() && !showUpdateAvailable && !showManualGuide)
-    return null;
+  if (!shouldShowInstallPrompt() && !showUpdateAvailable) return null;
 
   return (
     <>
@@ -206,34 +110,7 @@ export default function PWAInstaller() {
         </div>
       )}
 
-      {/* 수동 설치 가이드 (beforeinstallprompt 미지원 기기용) */}
-      {showManualGuide && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center">
-          <div className="w-full md:w-[420px] bg-white dark:bg-gray-800 rounded-t-2xl md:rounded-2xl p-5 shadow-xl">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                홈 화면에 설치
-              </h3>
-              <button
-                onClick={() => setShowManualGuide(false)}
-                className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <ol className="list-decimal pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-300">
-              <li>브라우저 메뉴를 엽니다.</li>
-              <li>"설치" 또는 "홈 화면에 추가"를 선택합니다.</li>
-              <li>지시에 따라 설치를 완료합니다.</li>
-            </ol>
-            <div className="mt-4 text-right">
-              <Button size="sm" onClick={() => setShowManualGuide(false)}>
-                닫기
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 수동 가이드는 제거 (간단 동작 유지) */}
 
       {/* 업데이트 알림 */}
       {showUpdateAvailable && (
