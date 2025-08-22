@@ -18,6 +18,7 @@ export default function PWAInstaller() {
   const [showUpdateAvailable, setShowUpdateAvailable] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [forceHomePopup, setForceHomePopup] = useState(false);
+  const [showManualGuide, setShowManualGuide] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -89,7 +90,10 @@ export default function PWAInstaller() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      setShowManualGuide(true);
+      return;
+    }
 
     try {
       // 사용자에게 설치 프롬프트 표시
@@ -168,7 +172,8 @@ export default function PWAInstaller() {
   };
 
   if (isStandalone) return null;
-  if (!shouldShowInstallPrompt() && !showUpdateAvailable) return null;
+  if (!shouldShowInstallPrompt() && !showUpdateAvailable && !showManualGuide)
+    return null;
 
   return (
     <>
@@ -195,6 +200,35 @@ export default function PWAInstaller() {
               </Button>
               <Button size="sm" variant="ghost" onClick={handleDismissInstall}>
                 <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 수동 설치 가이드 (beforeinstallprompt 미지원 기기용) */}
+      {showManualGuide && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end md:items-center justify-center">
+          <div className="w-full md:w-[420px] bg-white dark:bg-gray-800 rounded-t-2xl md:rounded-2xl p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                홈 화면에 설치
+              </h3>
+              <button
+                onClick={() => setShowManualGuide(false)}
+                className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <ol className="list-decimal pl-5 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+              <li>브라우저 메뉴를 엽니다.</li>
+              <li>"설치" 또는 "홈 화면에 추가"를 선택합니다.</li>
+              <li>지시에 따라 설치를 완료합니다.</li>
+            </ol>
+            <div className="mt-4 text-right">
+              <Button size="sm" onClick={() => setShowManualGuide(false)}>
+                닫기
               </Button>
             </div>
           </div>
