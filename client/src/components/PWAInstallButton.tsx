@@ -135,8 +135,10 @@ export default function PWAInstaller() {
 
   const handleDismissInstall = () => {
     setShowInstallPrompt(false);
-    // 24시간 동안 다시 표시하지 않음
-    localStorage.setItem("pwa-install-dismissed", Date.now().toString());
+    setForceHomePopup(false);
+    setDeferredPrompt(null);
+    // 24시간 동안 다시 표시하지 않음 (원하면 주석 해제)
+    // localStorage.setItem('pwa-install-dismissed', Date.now().toString());
   };
 
   const handleUpdateClick = () => {
