@@ -9,10 +9,10 @@
   "description": "시니어랑 - 시니어를 위한 플랫폼",
   "icons": [
     {
-      "src": "/images/decomsoft-logo.svg",
+      "src": "/images/seniorang-logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ]
-} 
+}
