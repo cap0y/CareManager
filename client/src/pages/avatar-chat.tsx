@@ -21,7 +21,39 @@ const AvatarChatPage = () => {
   const [desktopMode, setDesktopMode] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
-  const desktopWidth = 1200; // 내부 앱이 사이드바를 노출하는 기준 폭
+  const desktopWidth = 800; // 내부 앱이 사이드바를 노출하는 기준 폭
+
+  // 뷰포트 실측 기반 가용 높이 계산(하단 공백 제거)
+  const [containerPxHeight, setContainerPxHeight] = useState<number | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const updateHeight = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      const vv = (window as any).visualViewport;
+      const viewportH = vv?.height ?? window.innerHeight;
+      // 약간의 여유 픽셀(스크롤바/경계) 보정
+      const padding = 4;
+      const next = Math.max(50, Math.floor(viewportH - top - padding));
+      setContainerPxHeight(next);
+    };
+
+    updateHeight();
+    const vv = (window as any).visualViewport;
+    vv?.addEventListener("resize", updateHeight);
+    vv?.addEventListener("scroll", updateHeight);
+    window.addEventListener("resize", updateHeight);
+    window.addEventListener("orientationchange", updateHeight);
+    return () => {
+      vv?.removeEventListener("resize", updateHeight);
+      vv?.removeEventListener("scroll", updateHeight);
+      window.removeEventListener("resize", updateHeight);
+      window.removeEventListener("orientationchange", updateHeight);
+    };
+  }, []);
 
   useEffect(() => {
     if (!desktopMode) {
@@ -50,7 +82,9 @@ const AvatarChatPage = () => {
           ref={containerRef}
           className="relative w-full rounded-xl shadow border bg-white overflow-hidden"
           style={{
-            height: "calc(100dvh - 120px - env(safe-area-inset-bottom, 0px))",
+            height: containerPxHeight
+              ? `${containerPxHeight}px`
+              : "calc(100dvh - 120px - env(safe-area-inset-bottom, 0px))",
           }}
         >
           {/* 토글 버튼 */}
@@ -84,7 +118,7 @@ const AvatarChatPage = () => {
               <iframe
                 title="Open-LLM-VTuber"
                 src={iframeSrc}
-                className="w-full h-full border-0"
+                className="w-full h-full border-0 block"
                 allow="microphone; camera; clipboard-read; clipboard-write; autoplay"
               />
             </div>
@@ -92,7 +126,7 @@ const AvatarChatPage = () => {
             <iframe
               title="Open-LLM-VTuber"
               src={iframeSrc}
-              className="w-full h-full border-0"
+              className="w-full h-full border-0 block"
               allow="microphone; camera; clipboard-read; clipboard-write; autoplay"
             />
           )}
