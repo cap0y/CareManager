@@ -74,9 +74,9 @@ const AvatarChatPage = () => {
   return (
     <div className="min-h-[100dvh] w-full bg-black/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-4 py-1">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">
+        <h2 className="text-1xl sm:text-1xl font-bold text-gray-800 mb-1">
           말벗(아바타) 대화
-        </h1>
+        </h2>
         {/* 모바일 하단 잘림 방지를 위해 100dvh 사용, iOS 안전 영역 고려 */}
         <div
           ref={containerRef}
