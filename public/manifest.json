@@ -1,15 +1,15 @@
 {
-  "name": "시니어랑",
-  "short_name": "시니어랑",
+  "name": "케어링크",
+  "short_name": "케어링크",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
-  "description": "시니어랑 - 시니어를 위한 플랫폼",
+  "description": "케어링크 - 패밀리를 위한 플랫폼",
   "icons": [
     {
-      "src": "/images/seniorang-logo.svg",
+      "src": "/images/carelink-logo.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

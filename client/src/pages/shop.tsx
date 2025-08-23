@@ -45,8 +45,12 @@ const getImageUrl = (image: any): string => {
     }
 
     // 상대 경로인 경우 서버 URL 사용
-    if (image.startsWith("/uploads/") || image.startsWith("/api/uploads/") || 
-        image.startsWith("/images/") || image.startsWith("/images/item/")) {
+    if (
+      image.startsWith("/uploads/") ||
+      image.startsWith("/api/uploads/") ||
+      image.startsWith("/images/") ||
+      image.startsWith("/images/item/")
+    ) {
       // 경로에서 /api 접두사 제거 (필요한 경우)
       const cleanPath = image.startsWith("/api/") ? image.substring(4) : image;
       // 개발 환경에서는 서버가 5000 포트에서 실행되므로 이미지 URL을 서버 URL로 변경
@@ -89,12 +93,12 @@ const getCategoryName = (product: Product): string => {
   if ((product as any).category && (product as any).category !== null) {
     return (product as any).category;
   }
-  
+
   // 2. 실제 데이터베이스 구조에 맞는 카테고리 매핑
   const categoryMap: { [key: number]: string } = {
     1: "전체",
     2: "가공식품",
-    3: "건강식품", 
+    3: "건강식품",
     4: "기타",
     5: "농산물",
     6: "디지털상품",
@@ -106,15 +110,16 @@ const getCategoryName = (product: Product): string => {
     12: "취미/게임",
     13: "카페/베이커리",
     14: "패션",
-    15: "하드웨어"
+    15: "하드웨어",
   };
-  
+
   // 3. categoryId로 매핑
-  const categoryId = (product as any).categoryId || (product as any).category_id;
+  const categoryId =
+    (product as any).categoryId || (product as any).category_id;
   if (categoryId && categoryMap[Number(categoryId)]) {
     return categoryMap[Number(categoryId)];
   }
-  
+
   // 4. 기본값
   return categoryId ? `카테고리 ${categoryId}` : "기타";
 };
@@ -154,9 +159,11 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
           // 카테고리 객체에서 name 속성 추출
           const categoryNames = response.categories.map((cat: any) => {
             // cat이 객체인 경우 name 속성 사용, 문자열인 경우 그대로 사용
-            return typeof cat === 'object' && cat !== null ? cat.name || "기타" : cat;
+            return typeof cat === "object" && cat !== null
+              ? cat.name || "기타"
+              : cat;
           });
-          
+
           // "전체"가 이미 포함되어 있는지 확인하고, 없으면 추가
           if (!categoryNames.includes("전체")) {
             return ["전체", ...categoryNames];
@@ -174,30 +181,31 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
   // 중복 제거된 카테고리 목록 생성 함수
   const getUniqueCategories = () => {
     const categories = categoriesData || CATEGORIES;
-    
+
     // 디버깅 출력
-    console.log('카테고리 데이터:', JSON.stringify(categories));
-    
+    console.log("카테고리 데이터:", JSON.stringify(categories));
+
     // 각 항목이 객체인 경우 문자열로 변환
     const processedCategories = categories.map((category: any) => {
       // 카테고리가 객체인 경우 name 속성 사용
-      if (typeof category === 'object' && category !== null) {
-        return category.name || '기타';
+      if (typeof category === "object" && category !== null) {
+        return category.name || "기타";
       }
       // 이미 문자열이면 그대로 반환
       return category;
     });
-    
+
     // 중복 제거
-    return processedCategories.filter((category: string, index: number, array: string[]) => 
-      array.indexOf(category) === index
+    return processedCategories.filter(
+      (category: string, index: number, array: string[]) =>
+        array.indexOf(category) === index,
     );
   };
 
   // API 파라미터 생성
   const getQueryParams = () => {
     console.log("현재 selectedCategory:", selectedCategory);
-    
+
     const params: any = {
       sort:
         sortBy === "latest"
@@ -283,7 +291,7 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
       <div className="mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <ShoppingBag className="h-8 w-8 text-blue-600" />
-          <span>시니어랑 쇼핑몰</span>
+          <span>케어링크 쇼핑몰</span>
         </h1>
         <p className="text-gray-600 mt-2">
           생산자와 소비자를 직접 연결하는 신선한 농수산물 직거래 플랫폼입니다.
@@ -311,7 +319,9 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
               <Filter className="h-4 w-4" />
               <span>{selectedCategory}</span>
             </Button>
-            <div className={`absolute top-full right-0 mt-1 bg-white shadow-lg rounded-md border border-gray-200 z-10 ${showCategoryDropdown ? 'block' : 'hidden'}`}>
+            <div
+              className={`absolute top-full right-0 mt-1 bg-white shadow-lg rounded-md border border-gray-200 z-10 ${showCategoryDropdown ? "block" : "hidden"}`}
+            >
               {getUniqueCategories().map((category: string) => (
                 <button
                   key={category}
@@ -402,9 +412,9 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
                 {product.isCertified && (
                   <div className="absolute top-2 right-2">
                     <div className="w-16 h-16 rounded-lg bg-white shadow-md border-2 border-sky-300 flex items-center justify-center p-0">
-                      <img 
+                      <img
                         src="/images/certify.png"
-                        alt="인증 마크" 
+                        alt="인증 마크"
                         className="w-16 h-16"
                         title="인증된 판매자 상품"
                       />
@@ -486,4 +496,4 @@ export default function ShopPage({ onProductClick }: ShopPageProps) {
       )}
     </div>
   );
-} 
+}

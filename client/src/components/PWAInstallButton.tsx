@@ -87,7 +87,7 @@ export default function PWAInstaller() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                시니어랑 앱 설치
+                케어링크 앱 설치
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 더 빠른 접속과 오프라인 사용을 위해 앱을 설치하세요

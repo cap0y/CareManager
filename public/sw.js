@@ -1,5 +1,5 @@
 const CACHE_NAME = "seniorang-app-cache-v1";
-const urlsToCache = ["/", "/manifest.json", "/images/seniorang-logo.svg"];
+const urlsToCache = ["/", "/manifest.json", "/images/carelink-logo.svg"];
 
 // Install event
 self.addEventListener("install", (event) => {
@@ -75,8 +75,8 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("push", (event) => {
   const options = {
     body: event.data ? event.data.text() : "새로운 알림이 있습니다",
-    icon: "/images/seniorang-logo.svg",
-    badge: "/images/seniorang-logo.svg",
+    icon: "/images/carelink-logo.svg",
+    badge: "/images/carelink-logo.svg",
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
@@ -86,7 +86,7 @@ self.addEventListener("push", (event) => {
       {
         action: "explore",
         title: "확인하기",
-        icon: "/images/seniorang-logo.svg",
+        icon: "/images/carelink-logo.svg",
       },
       {
         action: "close",
@@ -95,7 +95,7 @@ self.addEventListener("push", (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification("시니어랑", options));
+  event.waitUntil(self.registration.showNotification("케어링크", options));
 });
 
 // Notification click event
