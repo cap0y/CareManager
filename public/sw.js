@@ -54,13 +54,22 @@ self.addEventListener("install", (event) => {
 
 // Fetch event - 개선된 캐시 전략
 self.addEventListener("fetch", (event) => {
-  // GET 요청만 캐시 처리 (POST, PUT, DELETE 등은 캐시하지 않음)
-  if (event.request.method !== "GET") {
-    event.respondWith(fetch(event.request));
-    return;
+  const url = event.request.url;
+
+  // API 요청은 서비스 워커를 완전히 우회 (캐시하지 않음)
+  if (url.includes("/api/")) {
+    return; // 서비스 워커가 전혀 개입하지 않음
   }
 
-  const url = event.request.url;
+  // 외부 URL (https://로 시작하는 절대 URL)은 서비스 워커를 우회
+  if (url.startsWith("https://") && !url.includes(self.location.hostname)) {
+    return; // 서비스 워커가 전혀 개입하지 않음
+  }
+
+  // GET 요청만 캐시 처리 (POST, PUT, DELETE 등은 캐시하지 않음)
+  if (event.request.method !== "GET") {
+    return; // 서비스 워커가 전혀 개입하지 않음
+  }
 
   // 네트워크 우선 전략 (HTML, JS, CSS, API)
   if (shouldUseNetworkFirst(url)) {
