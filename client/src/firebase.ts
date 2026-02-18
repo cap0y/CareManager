@@ -34,16 +34,15 @@ declare global {
   }
 }
 
-// Firebase Web SDK 구성 – 환경변수 대신 코드에 직접 명시
-// (보안 이슈는 없지만 필요 시 콘솔에서 키를 재발급하여 교체 가능)
+// Firebase Web SDK 구성 – .env 파일의 VITE_ 접두사 환경변수에서 읽어옴
 const firebaseConfig = {
-  apiKey: "AIzaSyALGof_Ac8Q8GJQt6x1QiM8LI-c-FjnjmE",
-  authDomain: "carelink-e3811.firebaseapp.com",
-  projectId: "carelink-e3811",
-  storageBucket: "carelink-e3811.firebasestorage.app",
-  messagingSenderId: "348338944030",
-  appId: "1:348338944030:web:326fb36815f77473fd960f",
-  measurementId: "G-8WJPHZMDLG"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 // Initialize Firebase only once

@@ -45,8 +45,8 @@ export function ensureAdminRights(user: any): any {
   return user;
 }
 
-// Kakao 로그인 설정
-const KAKAO_REST_KEY = "4d53287fcaa83a038163adf3b057b802";
+// Kakao 로그인 설정 – .env 파일의 VITE_ 접두사 환경변수에서 읽어옴
+const KAKAO_REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY || "";
 const KAKAO_REDIRECT_URI = `${window.location.origin}/oauth/kakao/callback`;
 const KAKAO_SDK_URL = "https://developers.kakao.com/sdk/js/kakao.js";
 

@@ -5,3 +5,8 @@ server/public
 vite.config.ts.*
 *.tar.gz
 .git.backup.*
+
+# 환경 변수 (절대 커밋하지 않기)
+.env
+.env.*
+!.env.example
