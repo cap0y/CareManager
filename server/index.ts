@@ -69,11 +69,11 @@ const startServer = async () => {
       });
     }
     
-    // 포트 설정 - Cloud Run은 PORT 환경 변수를 제공하며, 기본값은 8080
+    // 포트 설정 - Railway는 PORT 환경 변수를 자동 제공
     // 개발 환경에서는 5000을 사용하고, 프로덕션에서는 PORT 환경 변수 사용
-    const port = parseInt(process.env.PORT || (process.env.NODE_ENV === 'production' ? '8080' : '5000'));
+    const port = parseInt(process.env.PORT || '5000');
     
-    // 서버 시작 - Cloud Run 호환을 위해 항상 0.0.0.0으로 바인딩 (모든 인터페이스에서 접근 가능)
+    // 서버 시작 - 0.0.0.0으로 바인딩 (Railway 등 컨테이너 환경 호환)
     const host = '0.0.0.0';
     httpServer.listen(port, host, () => {
       console.log(`서버 실행 중: http://${host}:${port}`);
