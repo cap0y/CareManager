@@ -14,186 +14,99 @@ import { registerPaymentRoutes } from "./payment.js";
 import { eq } from "drizzle-orm";
 import { db } from "./db.js";
 import bcrypt from "bcryptjs";
+import { uploadBuffer } from "./cloudinary.js";
 
-// 이미지 업로드 디렉토리 설정
-const imageUploadDir = path.join(process.cwd(), "public", "images");
-if (!fs.existsSync(imageUploadDir)) {
-  fs.mkdirSync(imageUploadDir, { recursive: true });
-}
-
-// 프로필 이미지 전용 디렉토리 생성
-const profileImageUploadDir = path.join(imageUploadDir, "profile");
-if (!fs.existsSync(profileImageUploadDir)) {
-  fs.mkdirSync(profileImageUploadDir, { recursive: true });
-}
-
-// 상품 이미지 전용 디렉토리 생성
-const itemImageUploadDir = path.join(imageUploadDir, "item");
-if (!fs.existsSync(itemImageUploadDir)) {
-  fs.mkdirSync(itemImageUploadDir, { recursive: true });
-}
-
-// 채팅 이미지 전용 디렉토리 생성
-const chatImageUploadDir = path.join(imageUploadDir, "chat");
-if (!fs.existsSync(chatImageUploadDir)) {
-  fs.mkdirSync(chatImageUploadDir, { recursive: true });
-}
-
-// Multer 설정
-const storage_multer = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // 요청 경로에 따라 저장 폴더 결정
-    if (req.path === '/api/upload/product-image') {
-      cb(null, itemImageUploadDir);
-    } else if (req.path === '/api/upload') {
-      cb(null, profileImageUploadDir);
-    } else if (req.path === '/api/upload/chat-image') {
-      cb(null, chatImageUploadDir);
-    } else {
-      cb(null, imageUploadDir);
-    }
-  },
-  filename: (req, file, cb) => {
-    // 고유한 파일명 생성 (타임스탬프 + 랜덤문자 + 확장자)
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, `image-${uniqueSuffix}${ext}`);
-  }
-});
-
+// Multer 메모리 스토리지 (Cloudinary로 바로 업로드하기 위해 디스크 대신 메모리 사용)
 const upload = multer({
-  storage: storage_multer,
+  storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB 제한
+    fileSize: 10 * 1024 * 1024, // 10MB 제한
   },
   fileFilter: (req, file, cb) => {
-    // 이미지 파일만 허용
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
-      cb(new Error('이미지 파일만 업로드 가능합니다.'));
+      cb(new Error("이미지 파일만 업로드 가능합니다."));
     }
-  }
+  },
 });
 
 export async function registerRoutes(app: Express): Promise<void> {
-  // 정적 파일 서빙 설정 (images 폴더)
-  app.use('/images', (req, res, next) => {
-    // CORS 헤더 추가
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-    next();
-  }, express.static(imageUploadDir));
-
   // 결제 라우트 등록
   registerPaymentRoutes(app);
 
-  // 이미지 업로드 API
-  app.post("/api/upload", upload.single('image'), async (req, res) => {
+  // ── Cloudinary 이미지 업로드 API ──────────────────────────────
+
+  // 프로필 이미지 업로드
+  app.post("/api/upload", upload.single("image"), async (req, res) => {
     try {
-      console.log("🖼️ 프로필 이미지 업로드 요청 받음");
-      
+      console.log("🖼️ 프로필 이미지 업로드 요청 받음 (Cloudinary)");
       if (!req.file) {
         return res.status(400).json({ error: "이미지가 업로드되지 않았습니다." });
       }
 
-      // 이미지 URL 생성 (쇼핑몰과 동일한 형식)
-      const imageUrl = `/images/profile/${req.file.filename}`;
-      
-      console.log("🖼️ 프로필 이미지 업로드 성공:", {
-        originalName: req.file.originalname,
-        filename: req.file.filename,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-        url: imageUrl
-      });
+      const result = await uploadBuffer(req.file.buffer, "profile");
+      console.log("🖼️ Cloudinary 업로드 성공:", result.secure_url);
 
-      res.json({
-        success: true,
-        imageUrl
-      });
+      res.json({ success: true, imageUrl: result.secure_url });
     } catch (error) {
-      console.error("🚫 이미지 업로드 오류:", error);
+      console.error("🚫 프로필 이미지 업로드 오류:", error);
       res.status(500).json({ error: "이미지 업로드 중 오류가 발생했습니다" });
     }
   });
 
-  // 상품 이미지 전용 업로드 API
-  app.post("/api/upload/product-image", upload.single('image'), async (req, res) => {
+  // 상품 이미지 업로드
+  app.post("/api/upload/product-image", upload.single("image"), async (req, res) => {
     try {
-      console.log("🖼️ 상품 이미지 업로드 요청 받음");
-      
+      console.log("🖼️ 상품 이미지 업로드 요청 받음 (Cloudinary)");
       if (!req.file) {
         return res.status(400).json({ error: "이미지가 업로드되지 않았습니다." });
       }
 
-      // 이미지 URL 생성
-      const imageUrl = `/images/item/${req.file.filename}`;
-      
-      console.log("🖼️ 상품 이미지 업로드 성공:", {
-        originalName: req.file.originalname,
-        filename: req.file.filename,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-        url: imageUrl
-      });
+      const result = await uploadBuffer(req.file.buffer, "item");
+      console.log("🖼️ Cloudinary 업로드 성공:", result.secure_url);
 
-      return res.json({
-        success: true,
-        url: imageUrl
-      });
+      return res.json({ success: true, imageUrl: result.secure_url, url: result.secure_url });
     } catch (error) {
       console.error("🚫 상품 이미지 업로드 오류:", error);
-      return res.status(500).json({
-        error: "이미지 업로드 중 오류가 발생했습니다"
-      });
+      return res.status(500).json({ error: "이미지 업로드 중 오류가 발생했습니다" });
     }
   });
 
-  // 채팅 이미지 업로드 API
-  app.post("/api/upload/chat-image", upload.single('image'), async (req, res) => {
+  // 일반 이미지 업로드 (상품 설명 등)
+  app.post("/api/upload/image", upload.single("image"), async (req, res) => {
     try {
-      console.log("🖼️ 채팅 이미지 업로드 요청 받음");
-      
+      console.log("🖼️ 일반 이미지 업로드 요청 받음 (Cloudinary)");
       if (!req.file) {
         return res.status(400).json({ error: "이미지가 업로드되지 않았습니다." });
       }
 
-      // 채팅방 ID를 쿼리 파라미터로 받음 (선택적)
-      const roomId = req.query.roomId || 'general';
-      
-      // 채팅방별 디렉토리 생성
-      const roomDir = path.join(chatImageUploadDir, roomId.toString());
-      if (!fs.existsSync(roomDir)) {
-        fs.mkdirSync(roomDir, { recursive: true });
+      const result = await uploadBuffer(req.file.buffer, "content");
+      console.log("🖼️ Cloudinary 업로드 성공:", result.secure_url);
+
+      return res.json({ success: true, imageUrl: result.secure_url });
+    } catch (error) {
+      console.error("🚫 일반 이미지 업로드 오류:", error);
+      return res.status(500).json({ error: "이미지 업로드 중 오류가 발생했습니다" });
+    }
+  });
+
+  // 채팅 이미지 업로드
+  app.post("/api/upload/chat-image", upload.single("image"), async (req, res) => {
+    try {
+      console.log("🖼️ 채팅 이미지 업로드 요청 받음 (Cloudinary)");
+      if (!req.file) {
+        return res.status(400).json({ error: "이미지가 업로드되지 않았습니다." });
       }
-      
-      // 이미지 파일 이동
-      const newFilePath = path.join(roomDir, req.file.filename);
-      fs.renameSync(req.file.path, newFilePath);
 
-      // 이미지 URL 생성
-      const imageUrl = `/images/chat/${roomId}/${req.file.filename}`;
-      
-      console.log("🖼️ 채팅 이미지 업로드 성공:", {
-        roomId,
-        originalName: req.file.originalname,
-        filename: req.file.filename,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-        url: imageUrl
-      });
+      const roomId = req.query.roomId || "general";
+      const result = await uploadBuffer(req.file.buffer, `chat/${roomId}`);
+      console.log("🖼️ Cloudinary 업로드 성공:", result.secure_url);
 
-      return res.json({
-        success: true,
-        url: imageUrl
-      });
+      return res.json({ success: true, url: result.secure_url });
     } catch (error) {
       console.error("🚫 채팅 이미지 업로드 오류:", error);
-      return res.status(500).json({
-        error: "이미지 업로드 중 오류가 발생했습니다"
-      });
+      return res.status(500).json({ error: "이미지 업로드 중 오류가 발생했습니다" });
     }
   });
 

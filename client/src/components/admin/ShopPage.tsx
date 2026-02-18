@@ -66,59 +66,26 @@ const KOREAN_CARRIERS = [
 ];
 
 // 이미지 URL을 추출하는 헬퍼 함수
+// Cloudinary 이전 데이터 호환 + 새 Cloudinary URL 처리
 const getImageUrl = (image: any): string => {
   if (!image) return "";
 
-  // 문자열인 경우 (단순 URL 또는 Base64)
+  // 문자열인 경우
   if (typeof image === "string") {
-    // Base64 데이터인 경우 그대로 반환
-    if (image.startsWith("data:")) {
-      return image;
-    }
-
-    // 이미 완전한 URL인 경우 (http:// 또는 https://)
+    // Cloudinary URL 또는 일반 https URL → 그대로 반환
     if (image.startsWith("http://") || image.startsWith("https://")) {
       return image;
     }
-
-    // 상대 경로인 경우 현재 호스트 사용
-    if (image.startsWith("/uploads/") || image.startsWith("/api/uploads/") || 
-        image.startsWith("/images/") || image.startsWith("/images/item/")) {
-      // 경로에서 /api 접두사 제거 (필요한 경우)
-      const cleanPath = image.startsWith("/api/") ? image.substring(4) : image;
-      // 개발 환경에서는 서버가 5000 포트에서 실행되므로 이미지 URL을 서버 URL로 변경
-      return `${cleanPath}`;
+    // 기존 로컬 경로가 남아있는 경우 (레거시 데이터 호환)
+    if (image.startsWith("/")) {
+      return image;
     }
-
     return image;
   }
 
   // 객체인 경우 (url 속성이 있는 객체)
-  if (image && typeof image === "object") {
-    if ("url" in image) {
-      const url = image.url;
-      if (typeof url === "string") {
-        // Base64 데이터인 경우 그대로 반환
-        if (url.startsWith("data:")) {
-          return url;
-        }
-
-        // 이미 완전한 URL인 경우
-        if (url.startsWith("http://") || url.startsWith("https://")) {
-          return url;
-        }
-
-        // 상대 경로인 경우 현재 호스트 사용
-        if (url.startsWith("/uploads/") || url.startsWith("/api/uploads/") || 
-            url.startsWith("/images/") || url.startsWith("/images/item/")) {
-          // 경로에서 /api 접두사 제거 (필요한 경우)
-          const cleanPath = url.startsWith("/api/") ? url.substring(4) : url;
-          // 개발 환경에서는 서버가 5000 포트에서 실행되므로 이미지 URL을 서버 URL로 변경
-          return `${cleanPath}`;
-        }
-      }
-      return url || "";
-    }
+  if (image && typeof image === "object" && "url" in image) {
+    return getImageUrl(image.url);
   }
 
   return "";

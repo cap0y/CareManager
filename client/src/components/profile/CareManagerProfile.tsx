@@ -859,20 +859,10 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
     }
 
     try {
-      // 파일 읽기
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      setImageBase64(base64);
-
-      // 이미지 업로드 API 호출 (실제 서버에 저장)
+      // FormData로 서버(Cloudinary)에 업로드
       const formData = new FormData();
       formData.append("image", file);
-      formData.append("userId", user?.uid || ""); // 사용자 ID 추가
+      formData.append("userId", user?.uid || "");
 
       const response = await fetch("/api/upload", {
         method: "POST",
@@ -883,6 +873,12 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
         const errorText = await response.text();
         console.error("서버 오류 응답:", errorText);
         throw new Error(`이미지 업로드에 실패했습니다. (${response.status})`);
+      }
+
+      const data = await response.json();
+      if (data.success && data.imageUrl) {
+        // Cloudinary URL을 로컬 상태에 반영
+        setImageBase64(data.imageUrl);
       }
 
       // 성공 메시지
@@ -1265,11 +1261,8 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
 
       console.log("프로필 이미지 업로드 - 사용자 ID:", userId);
 
-      // 서버 기본 URL 설정
-      const serverBaseUrl = ""; // 프로덕션에서는 환경변수 사용 권장
-
-      // API 경로 수정: 서버에서 지원하는 엔드포인트로 변경
-      const response = await fetch(`${serverBaseUrl}/api/upload`, {
+      // 서버 → Cloudinary 업로드
+      const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -1283,19 +1276,18 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
       const result = await response.json();
 
       if (result.success && result.imageUrl) {
-        // 서버에서 반환된 이미지 URL을 사용
-        const fullImageUrl = `${serverBaseUrl}${result.imageUrl}`;
-        console.log("프로필 이미지 업로드 성공:", fullImageUrl);
+        // Cloudinary URL을 그대로 사용
+        console.log("프로필 이미지 업로드 성공:", result.imageUrl);
 
         // 로컬 상태 업데이트
-        setImageBase64(fullImageUrl);
+        setImageBase64(result.imageUrl);
 
-        // 케어 매니저 프로필 이미지 업데이트 (URL 저장)
-        updateProfileMutation.mutate({ imageUrl: fullImageUrl });
+        // 케어 매니저 프로필 이미지 업데이트 (Cloudinary URL 저장)
+        updateProfileMutation.mutate({ imageUrl: result.imageUrl });
 
         // Firebase 사용자 프로필 이미지도 함께 업데이트
         try {
-          await updateUserPhoto(fullImageUrl);
+          await updateUserPhoto(result.imageUrl);
         } catch (photoError) {
           console.error("Firebase 프로필 사진 업데이트 오류:", photoError);
         }
@@ -1639,15 +1631,12 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
         description: "잠시만 기다려주세요...",
       });
 
-      // 이미지 업로드 API 호출
+      // 이미지 업로드 API 호출 (Cloudinary)
       const formData = new FormData();
       formData.append("image", file);
       formData.append("userId", user?.uid || "");
 
-      // 서버 기본 URL 설정
-      const serverBaseUrl = ""; // 프로덕션에서는 환경변수 사용 권장
-
-      const response = await fetch(`${serverBaseUrl}/api/upload`, {
+      const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -1660,15 +1649,10 @@ const CareManagerProfile = ({ user }: CareManagerProfileProps) => {
 
       const result = await response.json();
 
-      // 이미지 URL을 콘텐츠에 업데이트
+      // Cloudinary URL을 콘텐츠에 업데이트
       if (result.success && result.imageUrl) {
-        // 서버 URL과 이미지 경로 조합
-        const imageUrl = normalizeImageUrl(
-          `${serverBaseUrl}${result.imageUrl}`,
-        );
-
-        console.log("이미지 업로드 성공:", imageUrl);
-        updateIntroContent(id, { content: imageUrl });
+        console.log("이미지 업로드 성공:", result.imageUrl);
+        updateIntroContent(id, { content: result.imageUrl });
 
         toast({
           title: "이미지 업로드 성공",

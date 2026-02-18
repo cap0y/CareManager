@@ -107,37 +107,27 @@ const CustomerProfile = ({ user }: CustomerProfileProps) => {
         description: "잠시만 기다려주세요...",
       });
 
-      // 이미지 압축 함수
-      const compressImage = (file: File, maxWidth: number = 400, quality: number = 0.8): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const img = new Image();
-          
-          img.onload = () => {
-            // 이미지 크기 조정
-            const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
-            canvas.width = img.width * ratio;
-            canvas.height = img.height * ratio;
-            
-            // 이미지 그리기
-            ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            // Base64로 변환 (압축 적용)
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-            resolve(compressedDataUrl);
-          };
-          
-          img.onerror = () => reject(new Error('이미지 로드 실패'));
-          img.src = URL.createObjectURL(file);
-        });
-      };
+      // FormData로 서버에 업로드 → Cloudinary URL 반환
+      const formData = new FormData();
+      formData.append("image", file);
 
-      const compressedImage = await compressImage(file);
-      
-      // Firebase와 케어매니저 프로필 모두 업데이트
-      const result = await updateUserPhoto(compressedImage);
-      
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`이미지 업로드 실패 (${response.status})`);
+      }
+
+      const data = await response.json();
+      if (!data.success || !data.imageUrl) {
+        throw new Error("서버 응답이 올바르지 않습니다.");
+      }
+
+      // Cloudinary URL로 Firebase + 서버 프로필 업데이트
+      const result = await updateUserPhoto(data.imageUrl);
+
       if (result) {
         toast({
           title: "프로필 사진 업데이트 완료",
