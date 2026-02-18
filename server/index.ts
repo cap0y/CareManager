@@ -23,6 +23,12 @@ const app = express();
 // CORS 설정
 app.use(cors());
 
+// Cross-Origin-Opener-Policy 설정 (Firebase signInWithPopup 팝업 허용)
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  next();
+});
+
 // JSON 파싱 - 이미지 업로드를 위해 크기 제한 증가
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));

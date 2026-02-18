@@ -485,9 +485,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // 로그인 시작 전에 decom2soft@gmail.com 확인을 위한 상태 설정
       localStorage.setItem('pending_admin_check', 'true');
       
-      console.log("구글 로그인 시작: 페이지 새로고침 방식으로 인증 진행");
+      console.log("구글 로그인 시작: 팝업 방식으로 인증 진행");
       
-      // 팝업 방식으로 로그인 (정책상 iframe 금지)
+      // 팝업 방식으로 로그인
       await signInWithPopup(auth, googleProvider);
       
       // 인증 UI 닫기
