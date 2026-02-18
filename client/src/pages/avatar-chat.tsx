@@ -9,7 +9,7 @@ const AvatarChatPage = () => {
     const url =
       envUrl && envUrl.trim().length > 0
         ? envUrl.trim()
-        : "https://decomsoft.com/vtuber";
+        : "https://aiavatar.up.railway.app/chat?model=10an_culture";
     // 마지막 슬래시 정리
     return url.endsWith("/") ? url.slice(0, -1) : url;
   }, []);
