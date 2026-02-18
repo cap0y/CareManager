@@ -211,6 +211,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // 앱 시작 시 한 번 초기화
     resetLocalStorage();
     
+    // Firebase auth가 초기화되지 않은 경우 로딩 상태만 해제
+    if (!auth) {
+      console.warn("⚠️ Firebase Auth가 초기화되지 않았습니다. Firebase 인증 기능이 비활성화됩니다.");
+      setIsLoading(false);
+      return;
+    }
+
     // 인증 지속성 설정 - LOCAL로 설정
     setPersistence(auth, browserLocalPersistence)
       .then(() => {
@@ -255,47 +262,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setIsLoading(false); // 인증 상태 확인 완료
     });
     
-    // 리디렉션 결과 처리
+    // 리디렉션 결과 처리 (signInWithRedirect 사용 시)
     const handleRedirectResult = async () => {
       try {
-        // 리디렉션 결과 확인
         const result = await getRedirectResult(auth);
         
         if (result && result.user) {
           console.log("구글 로그인 리디렉션 성공:", result.user.email);
           
-          // decom2soft@gmail.com 이메일 직접 확인
-          if (result.user.email?.toLowerCase() === "decom2soft@gmail.com") {
-            console.log("★★★ 슈퍼 관리자 계정 감지: decom2soft@gmail.com ★★★");
-            
-            // 로컬 스토리지 완전히 초기화
-            localStorage.clear();
-            
-            // 관리자 권한 설정
-            const userTypes = {};
-            userTypes[result.user.email] = 'admin';
-            localStorage.setItem("user_types", JSON.stringify(userTypes));
-            console.log("관리자 권한 설정 완료:", JSON.stringify(userTypes));
-            
-            // 직접 관리자 페이지로 이동
-            setTimeout(() => {
-              console.log("관리자 페이지로 강제 이동합니다...");
-              window.location.href = "/profile";
-            }, 1000);
+          // 슈퍼 관리자 확인 시 user_types만 업데이트 (localStorage.clear 금지!)
+          if (isSuperAdmin(result.user.email)) {
+            console.log("리디렉션: 슈퍼 관리자 계정 감지:", result.user.email);
+            saveUserType(result.user.email!, 'admin');
           }
           
-          // 이전 페이지로 이동 (선택적)
-          if (localStorage.getItem('pending_admin_check')) {
-            localStorage.removeItem('pending_admin_check');
-            window.location.href = "/profile"; // 프로필 페이지로 강제 이동
-          }
+          // pending_admin_check 플래그 정리
+          localStorage.removeItem('pending_admin_check');
         }
       } catch (error) {
         console.error("리디렉션 결과 처리 오류:", error);
       }
     };
     
-    // 리디렉션 결과 처리 실행
     handleRedirectResult();
 
     // Load Kakao SDK once
@@ -319,28 +307,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const mapFirebaseUser = (fbUser: FirebaseUser): User => {
-    // 슈퍼 관리자 이메일 직접 확인 - 대소문자 구분 없이
     const email = fbUser.email || "";
-    
-    // 슈퍼 관리자 확인 로직 강화
     let userType: UserType = 'customer';
     
-    // 디버깅을 위한 상세 로그 추가
     console.log("Firebase 사용자 매핑 - 이메일:", email);
     
-    // decom2soft@gmail.com 계정은 무조건 admin 권한 부여 (대소문자 무시)
-    if (email.toLowerCase() === "decom2soft@gmail.com") {
-      console.log("decom2soft@gmail.com 계정 감지 - 무조건 admin으로 설정");
+    // 슈퍼 관리자 확인 (isSuperAdmin은 대소문자 무시)
+    if (isSuperAdmin(email)) {
+      console.log("슈퍼 관리자 계정 감지 - admin으로 설정:", email);
       userType = 'admin';
       
-      // 로컬 스토리지 초기화 및 admin 설정
-      localStorage.clear();
-      const userTypes = {};
-      userTypes[email] = 'admin';
-      localStorage.setItem("user_types", JSON.stringify(userTypes));
-      
-      // 1초 후에 페이지 새로고침하여 확실하게 적용
-      setTimeout(() => window.location.reload(), 1000);
+      // ⚠️ localStorage.clear() 절대 사용 금지!
+      // Firebase는 인증 토큰을 localStorage에 저장하므로
+      // clear()를 호출하면 로그인 상태가 즉시 소실됩니다.
+      // user_types 키만 개별적으로 업데이트합니다.
+      saveUserType(email, 'admin');
       
       return {
         uid: fbUser.uid,
@@ -353,81 +334,47 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       };
     }
     
-    // 슈퍼 관리자 여부 확인 - isSuperAdmin 유틸리티 함수 사용
-    if (isSuperAdmin(email)) {
-      userType = 'admin';
-      console.log("Firebase 인증 후 슈퍼 관리자 감지 - admin 타입 설정");
-      
-      // 강제로 로컬 스토리지 업데이트
-      try {
-        // 기존 로컬 스토리지 초기화
-        localStorage.clear();
-        
-        const userTypes = {};
-        userTypes[email] = 'admin';
-        localStorage.setItem("user_types", JSON.stringify(userTypes));
-        console.log("슈퍼 관리자 로컬 스토리지 강제 업데이트");
-      } catch (e) {
-        console.error("로컬 스토리지 업데이트 오류", e);
-      }
-    } else {
-      // 기존 저장된 유형이 있으면 사용
-      userType = getSavedUserType(email) || determineUserType(email);
-    }
-    
+    // 일반 사용자: 저장된 유형이 있으면 사용, 없으면 기본값
+    userType = getSavedUserType(email) || determineUserType(email);
     console.log("최종 설정된 사용자 타입:", userType);
     
-    const mappedUser = {
+    return {
       uid: fbUser.uid,
       email: fbUser.email,
       displayName: fbUser.displayName,
       photoURL: fbUser.photoURL,
       userType,
-      grade: 'bronze',  // 기본 등급 설정
-      isApproved: userType !== 'careManager' || false,  // 케어매니저가 아니면 승인 불필요
+      grade: 'bronze',
+      isApproved: userType !== 'careManager',
     };
-    
-    // 슈퍼 관리자 권한 최종 확인 및 적용
-    return ensureAdminRights(mappedUser);
   };
 
   const login = (localUser: User) => {
-    // 사용자 타입 저장 (기존 타입이 있으면 그대로 사용)
     if (localUser.email) {
-      console.log("로그인 시도 - 원본 유저 정보:", localUser);
+      // 슈퍼 관리자 확인
+      const userType = isSuperAdmin(localUser.email) 
+        ? 'admin' 
+        : (localUser.userType || determineUserType(localUser.email));
       
-      // 슈퍼 관리자 확인 강제 적용
-      let userType = localUser.userType;
-      if (localUser.email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
-        userType = 'admin';
-        console.log("로그인 함수에서 슈퍼 관리자 감지! 강제 admin 설정");
-        
-        // 관리자 사용자 타입을 강제로 설정 - 기존 객체 속성 직접 수정
-        localUser.userType = 'admin';
-      } else {
-        userType = userType || determineUserType(localUser.email);
-      }
-      
-      // 타입 정보가 없는 경우 기본 타입으로 추가
-      const updatedUser = {
+      const updatedUser: User = {
         ...localUser,
         userType,
         grade: localUser.grade || 'bronze',
-        isApproved: localUser.isApproved !== undefined ? localUser.isApproved : (userType !== 'careManager' || false),
+        isApproved: localUser.isApproved !== undefined 
+          ? localUser.isApproved 
+          : (userType !== 'careManager'),
       };
       
-      console.log("업데이트된 유저 정보:", updatedUser);
+      console.log("로그인 사용자:", updatedUser.email, "타입:", updatedUser.userType);
       
-      // 로컬 스토리지에 사용자 타입 저장
+      // user_types 키만 업데이트 (localStorage.clear 금지!)
       saveUserType(localUser.email, userType);
       
-      // 사용자 정보를 업데이트된 내용으로 설정
       setUser(updatedUser);
-      setShowAuthModal(false);
     } else {
       setUser(localUser);
-      setShowAuthModal(false);
     }
+    setShowAuthModal(false);
   };
 
   // 서버 API를 통한 이메일/비밀번호 로그인
@@ -450,22 +397,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.log("서버 API 로그인 성공:", data);
 
       if (data.user) {
-        // 슈퍼 관리자 확인 로직 - 명확한 비교 추가
-        if (email && email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
-          console.log(`슈퍼 관리자 감지: ${email}`);
-          // 직접 userType 속성 설정
+        // 슈퍼 관리자면 userType을 admin으로 설정
+        if (isSuperAdmin(email)) {
           data.user.userType = 'admin';
-          console.log("관리자로 사용자 타입 설정:", data.user);
-          
-          // 강제로 로컬 스토리지 업데이트
-          try {
-            const userTypes = JSON.parse(localStorage.getItem("user_types") || "{}");
-            userTypes[email] = 'admin';
-            localStorage.setItem("user_types", JSON.stringify(userTypes));
-            console.log("이메일 로그인: 슈퍼 관리자 로컬 스토리지 강제 업데이트");
-          } catch (e) {
-            console.error("로컬 스토리지 업데이트 오류", e);
-          }
+          saveUserType(email, 'admin');
         }
         
         login(data.user);
@@ -482,17 +417,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const googleLogin = async () => {
     try {
-      // 로그인 시작 전에 decom2soft@gmail.com 확인을 위한 상태 설정
-      localStorage.setItem('pending_admin_check', 'true');
+      if (!auth) {
+        console.error("Firebase Auth가 초기화되지 않아 구글 로그인을 사용할 수 없습니다.");
+        return;
+      }
       
       console.log("구글 로그인 시작: 팝업 방식으로 인증 진행");
       
-      // 팝업 방식으로 로그인
+      // 팝업 방식으로 로그인 - onAuthStateChanged에서 후속 처리됨
       await signInWithPopup(auth, googleProvider);
       
       // 인증 UI 닫기
       setShowAuthModal(false);
-    } catch (error) {
+    } catch (error: any) {
+      // 사용자가 팝업을 닫은 경우 (auth/popup-closed-by-user)는 정상 흐름
+      if (error?.code === 'auth/popup-closed-by-user') {
+        console.log("사용자가 로그인 팝업을 닫았습니다.");
+        return;
+      }
       console.error("구글 로그인 오류:", error);
     }
   };
@@ -511,7 +453,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = async () => {
     // Firebase 로그아웃
-    await signOut(auth);
+    if (auth) await signOut(auth);
     
     // 로컬 스토리지의 인증 관련 데이터 삭제
     localStorage.removeItem("socket_session");
@@ -558,7 +500,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     try {
       // Firebase 사용자 프로필 업데이트
-      const currentUser = auth.currentUser;
+      const currentUser = auth?.currentUser;
       if (currentUser) {
         await updateProfile(currentUser, { photoURL });
       }

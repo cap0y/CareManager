@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react()],
   root: './client',
   publicDir: '../public',
+  envDir: path.resolve(__dirname), // .env 파일이 프로젝트 루트에 있으므로 절대 경로로 지정
   resolve: {
     alias: {
       '@': path.resolve('./client/src'),
@@ -17,6 +18,10 @@ export default defineConfig({
     host: true,
     open: true, // 자동으로 브라우저 열기
     cors: true,
+    // Firebase signInWithPopup 팝업이 window.close()를 호출할 수 있도록 COOP 헤더 설정
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:5000', // 백엔드 API 서버로 프록시

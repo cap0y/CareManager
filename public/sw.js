@@ -6,6 +6,9 @@ const STATIC_CACHE_NAME = `seniorang-static-cache-v${CACHE_VERSION}`;
 // 정적 리소스만 사전 캐시
 const urlsToCache = ["/manifest.json", "/images/carelink-logo.svg"];
 
+// 개발 모드 판별 – localhost 또는 127.0.0.1 에서 실행 중이면 true
+const IS_DEV = self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1";
+
 // 캐시 전략별 URL 패턴 정의
 const NETWORK_FIRST_PATTERNS = [
   /\.html$/,
@@ -26,6 +29,14 @@ const CACHE_FIRST_PATTERNS = [
   /\.ttf$/,
 ];
 
+// 서비스 워커가 무시해야 할 URL 패턴 (개발 서버, HMR, 외부 CDN 등)
+const IGNORE_PATTERNS = [
+  /^chrome-extension:\/\//,
+  /\/\?t=\d+/,      // Vite HMR 요청
+  /@vite/,           // Vite 내부 요청
+  /@react-refresh/,  // React HMR
+];
+
 // 캐시 전략을 판단하는 헬퍼 함수
 function shouldUseNetworkFirst(url) {
   return NETWORK_FIRST_PATTERNS.some((pattern) => pattern.test(url));
@@ -33,6 +44,10 @@ function shouldUseNetworkFirst(url) {
 
 function shouldUseCacheFirst(url) {
   return CACHE_FIRST_PATTERNS.some((pattern) => pattern.test(url));
+}
+
+function shouldIgnore(url) {
+  return IGNORE_PATTERNS.some((pattern) => pattern.test(url));
 }
 
 // Install event
@@ -56,19 +71,29 @@ self.addEventListener("install", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = event.request.url;
 
+  // 개발 모드에서는 서비스 워커 캐시를 사용하지 않음 (HMR 등과 충돌 방지)
+  if (IS_DEV) {
+    return;
+  }
+
+  // 무시해야 할 URL 패턴은 우회
+  if (shouldIgnore(url)) {
+    return;
+  }
+
   // API 요청은 서비스 워커를 완전히 우회 (캐시하지 않음)
   if (url.includes("/api/")) {
-    return; // 서비스 워커가 전혀 개입하지 않음
+    return;
   }
 
   // 외부 URL (https://로 시작하는 절대 URL)은 서비스 워커를 우회
   if (url.startsWith("https://") && !url.includes(self.location.hostname)) {
-    return; // 서비스 워커가 전혀 개입하지 않음
+    return;
   }
 
   // GET 요청만 캐시 처리 (POST, PUT, DELETE 등은 캐시하지 않음)
   if (event.request.method !== "GET") {
-    return; // 서비스 워커가 전혀 개입하지 않음
+    return;
   }
 
   // 네트워크 우선 전략 (HTML, JS, CSS, API)
@@ -92,7 +117,14 @@ self.addEventListener("fetch", (event) => {
         .catch(() => {
           // 네트워크 실패 시 캐시에서 찾기
           console.log("Network failed, trying cache for:", url);
-          return caches.match(event.request);
+          return caches.match(event.request).then((cached) => {
+            // 캐시에도 없으면 기본 오프라인 응답 반환
+            return cached || new Response("Offline", {
+              status: 503,
+              statusText: "Service Unavailable",
+              headers: new Headers({ "Content-Type": "text/plain" }),
+            });
+          });
         }),
     );
   }
@@ -103,25 +135,38 @@ self.addEventListener("fetch", (event) => {
         if (response) {
           return response;
         }
-        return fetch(event.request).then((response) => {
-          if (
-            response &&
-            response.status === 200 &&
-            response.type === "basic"
-          ) {
-            const responseToCache = response.clone();
-            caches.open(STATIC_CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return response;
-        });
+        return fetch(event.request)
+          .then((response) => {
+            if (
+              response &&
+              response.status === 200 &&
+              response.type === "basic"
+            ) {
+              const responseToCache = response.clone();
+              caches.open(STATIC_CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+            }
+            return response;
+          })
+          .catch(() => {
+            // 정적 리소스 fetch 실패 시 빈 응답
+            return new Response("", { status: 408, statusText: "Request Timeout" });
+          });
       }),
     );
   }
-  // 기타 요청은 네트워크만 사용 (캐시하지 않음)
+  // 기타 요청은 네트워크만 사용 (캐시하지 않음, 실패 시 안전하게 처리)
   else {
-    event.respondWith(fetch(event.request));
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return new Response("Offline", {
+          status: 503,
+          statusText: "Service Unavailable",
+          headers: new Headers({ "Content-Type": "text/plain" }),
+        });
+      }),
+    );
   }
 });
 

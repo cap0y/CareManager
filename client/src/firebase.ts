@@ -45,26 +45,39 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase only once
-const app = initializeApp(firebaseConfig);
+// Firebase 설정이 유효한지 확인 (API 키가 없으면 초기화하지 않음)
+const isFirebaseConfigValid = !!(firebaseConfig.apiKey && firebaseConfig.projectId);
+
+if (!isFirebaseConfigValid) {
+  console.warn(
+    "⚠️ Firebase 환경변수(VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID)가 설정되지 않았습니다.\n" +
+    "   Firebase 기능(인증, Firestore, Storage)이 비활성화됩니다.\n" +
+    "   .env 파일에 VITE_FIREBASE_API_KEY 등을 설정해주세요."
+  );
+}
+
+// Initialize Firebase only once (설정이 유효할 때만)
+const app = isFirebaseConfigValid ? initializeApp(firebaseConfig) : null;
 
 // 인증 인스턴스 가져오기
-export const auth = getAuth(app);
+export const auth = app ? getAuth(app) : null;
 
 // Firestore 인스턴스 초기화
-export const db = getFirestore(app);
+export const db = app ? getFirestore(app) : null;
 
 // Storage 인스턴스 초기화
-export const storage = getStorage(app);
+export const storage = app ? getStorage(app) : null;
 
 // 인증 상태 지속성 설정 - 로컬 스토리지에 저장
-setPersistence(auth, browserLocalPersistence)
-  .then(() => {
-    console.log("Firebase 인증 상태 지속성이 로컬 스토리지로 설정되었습니다.");
-  })
-  .catch((error) => {
-    console.error("인증 상태 지속성 설정 오류:", error);
-  });
+if (auth) {
+  setPersistence(auth, browserLocalPersistence)
+    .then(() => {
+      console.log("Firebase 인증 상태 지속성이 로컬 스토리지로 설정되었습니다.");
+    })
+    .catch((error) => {
+      console.error("인증 상태 지속성 설정 오류:", error);
+    });
+}
 
 // 구글 인증 프로바이더 설정
 export const googleProvider = new GoogleAuthProvider();
@@ -77,11 +90,15 @@ googleProvider.setCustomParameters({
   auth_type: 'reauthenticate'
 });
 
+// Firebase가 비활성화 상태인지 확인하는 헬퍼
+export const isFirebaseEnabled = () => isFirebaseConfigValid;
+
 // === 채팅 관련 Firestore 함수 ===
 
 // 이미지 업로드 함수 추가
 export const uploadImage = async (file: File, path: string) => {
   try {
+    if (!storage) return { success: false, error: "Firebase Storage가 초기화되지 않았습니다." };
     // 이미지 파일 경로 설정
     const storageRef = ref(storage, path);
     
@@ -101,6 +118,7 @@ export const uploadImage = async (file: File, path: string) => {
 // 채팅방 생성 또는 기존 채팅방 가져오기
 export const createOrGetChatRoom = async (userId: string, targetId: string) => {
   try {
+    if (!db) return { success: false, error: "Firestore가 초기화되지 않았습니다." };
     // 두 사용자 ID를 정렬하여 항상 동일한 채팅방 ID가 생성되도록 함
     const ids = [userId, targetId].sort();
     const roomId = `chat_${ids[0]}_${ids[1]}`;
@@ -126,6 +144,7 @@ export const createOrGetChatRoom = async (userId: string, targetId: string) => {
 // 메시지 전송 (이미지 URL 포함)
 export const sendChatMessage = async (roomId: string, content: string, senderId: string, imageUrl?: string) => {
   try {
+    if (!db) return { success: false, error: "Firestore가 초기화되지 않았습니다." };
     // 채팅방의 메시지 컬렉션에 새 메시지 추가
     const messagesRef = collection(db, "chatRooms", roomId, "messages");
     const newMessage = {
@@ -159,6 +178,7 @@ export const sendChatMessage = async (roomId: string, content: string, senderId:
 // 메시지 내역 불러오기
 export const getChatMessages = async (roomId: string, messageLimit = 50) => {
   try {
+    if (!db) return { success: false, error: "Firestore가 초기화되지 않았습니다." };
     const messagesRef = collection(db, "chatRooms", roomId, "messages");
     const q = query(messagesRef, orderBy("timestamp"), limit(messageLimit));
     
@@ -179,6 +199,7 @@ export const getChatMessages = async (roomId: string, messageLimit = 50) => {
 // 실시간 메시지 리스너 설정
 export const subscribeToMessages = (roomId: string, callback) => {
   try {
+    if (!db) { console.warn("Firestore가 초기화되지 않았습니다."); return null; }
     const messagesRef = collection(db, "chatRooms", roomId, "messages");
     const q = query(messagesRef, orderBy("timestamp"));
     
@@ -204,6 +225,7 @@ export const subscribeToMessages = (roomId: string, callback) => {
 // 사용자의 채팅방 목록 가져오기
 export const getUserChatRooms = async (userId: string) => {
   try {
+    if (!db) return { success: false, error: "Firestore가 초기화되지 않았습니다." };
     const roomsRef = collection(db, "chatRooms");
     const q = query(
       roomsRef, 
@@ -227,6 +249,7 @@ export const getUserChatRooms = async (userId: string) => {
 // 메시지 읽음 상태 업데이트
 export const markMessagesAsRead = async (roomId: string, userId: string) => {
   try {
+    if (!db) return { success: false, error: "Firestore가 초기화되지 않았습니다." };
     // 특정 사용자가 보낸 메시지가 아니면서 읽지 않은 메시지만 조회
     const messagesRef = collection(db, "chatRooms", roomId, "messages");
     const q = query(
