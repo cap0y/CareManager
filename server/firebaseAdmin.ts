@@ -3,18 +3,62 @@ import "dotenv/config";
 
 /**
  * Railway / Render 등 PaaS 환경에서 FIREBASE_PRIVATE_KEY 를 안전하게 파싱한다.
- * - 양쪽 큰따옴표가 포함된 경우 제거
- * - 리터럴 문자열 \n 을 실제 줄바꿈으로 변환
+ * 다양한 입력 형태를 모두 처리:
+ *  1) JSON 문자열로 감싸진 경우 (큰따옴표 제거)
+ *  2) 리터럴 \\n → 실제 줄바꿈 변환
+ *  3) 이미 실제 줄바꿈이 포함된 경우 그대로 사용
+ *  4) PEM 헤더/푸터가 올바른지 검증
  */
 function parsePrivateKey(raw?: string): string {
-  if (!raw) return "";
-  // 1) 양쪽 큰따옴표 제거 (Railway에서 값을 복사할 때 포함될 수 있음)
-  let key = raw;
-  if (key.startsWith('"') && key.endsWith('"')) {
-    key = key.slice(1, -1);
+  if (!raw) {
+    console.warn("⚠️ FIREBASE_PRIVATE_KEY 가 비어 있습니다.");
+    return "";
   }
-  // 2) 리터럴 \n → 실제 줄바꿈 변환
-  key = key.replace(/\\n/g, "\n");
+
+  let key = raw.trim();
+
+  // 디버깅: 원본 값의 길이와 앞/뒤 문자 출력 (키 내용은 노출하지 않음)
+  console.log(`🔑 Private Key 파싱 시작 - 원본 길이: ${key.length}, 앞 30자: "${key.substring(0, 30)}..."`);
+
+  // 1) JSON.parse 시도 — JSON 문자열로 전달된 경우 (예: "\"-----BEGIN...\"")
+  if (key.startsWith('"') || key.startsWith("'")) {
+    try {
+      const parsed = JSON.parse(key);
+      if (typeof parsed === "string") {
+        key = parsed;
+        console.log("🔑 JSON.parse 로 언래핑 성공");
+      }
+    } catch {
+      // JSON이 아니면 수동으로 따옴표 제거
+      if (
+        (key.startsWith('"') && key.endsWith('"')) ||
+        (key.startsWith("'") && key.endsWith("'"))
+      ) {
+        key = key.slice(1, -1);
+        console.log("🔑 수동 따옴표 제거 완료");
+      }
+    }
+  }
+
+  // 2) 리터럴 \\n → 실제 줄바꿈 변환 (두 글자 문자열 '\' + 'n' → 진짜 개행)
+  if (key.includes("\\n")) {
+    key = key.replace(/\\n/g, "\n");
+    console.log("🔑 리터럴 \\\\n → 줄바꿈 변환 완료");
+  }
+
+  // 3) PEM 헤더/푸터 검증
+  if (!key.includes("-----BEGIN")) {
+    console.error("❌ Private Key 에 PEM 헤더(-----BEGIN)가 없습니다!");
+    console.error(`❌ 현재 키의 앞 50자: "${key.substring(0, 50)}"`);
+  }
+  if (!key.includes("-----END")) {
+    console.error("❌ Private Key 에 PEM 푸터(-----END)가 없습니다!");
+  }
+
+  // 4) 줄바꿈 개수 확인 (정상적인 RSA 키는 ~28줄)
+  const lineCount = key.split("\n").length;
+  console.log(`🔑 Private Key 파싱 완료 - 줄 수: ${lineCount}, 총 길이: ${key.length}`);
+
   return key;
 }
 
