@@ -42,7 +42,7 @@ const loadGoogleMapsApi = (): Promise<void> => {
     const script = document.createElement('script');
     // 캐시 버스팅을 위한 타임스탬프 추가
     const timestamp = new Date().getTime();
-    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZkoRGw9UByZ2vuNC9j95H4EYcxCl1Vs&libraries=places&callback=initGoogleMaps&v=3.exp&_=${timestamp}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDZZkoRGw9UByZ2vuNC9j95H4EYcxCl1Vs&libraries=places,marker&callback=initGoogleMaps&v=weekly&_=${timestamp}`;
     script.async = true;
     script.defer = true;
     
